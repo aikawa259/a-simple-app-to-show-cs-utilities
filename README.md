@@ -3,6 +3,17 @@
 CS 战术道具（lineup）教学 App 的安卓实现，效果对齐 iOS 项目
 [`lec444c/My-First-IOS-App`](https://github.com/lec444c/My-First-IOS-App)（CSTacticsApp / AimNade）。
 
+## 下载安装（安卓手机）
+
+**免登录直链**（推荐发给别人时用这个，链接不会随版本变化）：
+
+https://github.com/aikawa259/a-simple-app-to-show-cs-utilities/releases/latest/download/CSLineups-debug.apk
+
+安装步骤：打开链接下载 → 浏览器提示时选择用系统安装器打开 → 系统要求允许"安装未知来源应用"
+→ 出现"Play 保护机制"警告时点"更多信息" → "仍要安装"。
+
+要求 Android 8.0 及以上。当前是 debug 包，供自测使用。
+
 ## 目标效果
 
 - 地图列表 → 地图首页（2D 战术地图 / 道具列表 / 搜索 / 收藏 四个入口）
@@ -102,3 +113,14 @@ powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl h
 ```
 
 装了 GitHub CLI 并登录后，也可以用 `-Create` 直接创建仓库再推送。
+
+## 发布新版本（让手机用户能下载）
+
+Release 里的附件固定叫 `CSLineups-debug.apk`，所以上面那条 `/releases/latest/download/...` 链接
+永远指向最新版，不用改。发新版本时：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1   # 先重新编译
+# 再到 GitHub 网页 Releases → Draft a new release，填新 tag（如 v0.1.1）、
+# 把 dist 里的 APK 拖进附件区，并把附件名叫成 CSLineups-debug.apk，然后 Publish
+```
