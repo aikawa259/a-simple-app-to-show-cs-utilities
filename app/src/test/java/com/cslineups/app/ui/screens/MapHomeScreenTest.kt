@@ -3,6 +3,7 @@ package com.cslineups.app.ui.screens
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -71,9 +72,19 @@ class MapHomeScreenTest {
         compose.onNodeWithContentDescription("添加道具").assertExists()
     }
 
-    // 说明：不在这里测"点开弹窗"的交互。Robolectric 下弹窗打开后 Compose
-    // 无法回到空闲状态（会一直等到 60 秒超时），属于测试环境限制；
-    // 新建地图 / 添加道具的逻辑由 MapRepositoryTest 覆盖，弹窗本身在真机验证。
+    @Test
+    fun `点右下角加号会弹出液态玻璃弹窗`() {
+        renderHome()
+
+        compose.onNodeWithContentDescription("添加道具").performClick()
+
+        compose.onNodeWithText("创建并编辑").assertExists()
+        compose.onNodeWithText("取消").assertExists()
+    }
+
+    // 说明：不测"关掉弹窗"和"新建地图弹窗"的交互——那两个走的是独立窗口（Dialog），
+    // Robolectric 下窗口移除后 Compose 不会回到空闲状态，测试会一直等到 60 秒超时。
+    // 玻璃弹窗是页面内的浮层，所以可以测。
     @Test
     fun `没有地图时显示创建引导`() {
         renderHome(currentMap = null, maps = emptyList())

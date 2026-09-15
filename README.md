@@ -110,7 +110,10 @@ powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl h
 
 - 设置页新增「深色模式」三档选择：跟随系统 / 浅色 / 深色，选择会记住
 - 窗口底色跟着所选外观走，避免启动或切页时闪出另一种颜色
-- 测试增至 19 项（新增 `ThemeModeTest`、`SettingsScreenTest`）
+- 添加道具的悬浮窗改成**液态玻璃**：背后的内容实时模糊 + 半透明玻璃卡片 + 高光边框 + 弹簧放大入场，点遮罩关闭
+- **所有卡片和按钮按下时轻微发光**：三层渐隐光晕（用描边实现，任何 Android 版本都能画），
+  入口卡片按各自主题色发光，删除按钮发红光
+- 测试增至 20 项（新增 `ThemeModeTest`、`SettingsScreenTest`、玻璃弹窗渲染用例）
 
 **0.4.0**
 

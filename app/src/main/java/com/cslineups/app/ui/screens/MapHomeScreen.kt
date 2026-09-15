@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,11 +35,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +50,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +61,12 @@ import com.cslineups.app.model.CsMap
 import com.cslineups.app.ui.components.AddIconButton
 import com.cslineups.app.ui.components.ConfirmDialog
 import com.cslineups.app.ui.components.EmptyState
+import com.cslineups.app.ui.components.GlassOverlay
+import com.cslineups.app.ui.components.GlassPrimaryButton
+import com.cslineups.app.ui.components.GlassSectionLabel
+import com.cslineups.app.ui.components.GlassTextButton
+import com.cslineups.app.ui.components.GlowFab
+import com.cslineups.app.ui.components.GlowIconButton
 import com.cslineups.app.ui.components.EntryCard
 import com.cslineups.app.ui.components.PagePadding
 import com.cslineups.app.ui.components.PressableCard
@@ -65,6 +74,7 @@ import com.cslineups.app.ui.components.ScreenScaffold
 import com.cslineups.app.ui.components.SmallShape
 import com.cslineups.app.ui.components.TextEditDialog
 import com.cslineups.app.ui.components.UtilityBadge
+import com.cslineups.app.ui.components.glassTextFieldColors
 import com.cslineups.app.ui.components.pressScale
 import kotlinx.coroutines.delay
 
@@ -94,6 +104,14 @@ fun MapHomeScreen(
     var deletingMap by remember { mutableStateOf<CsMap?>(null) }
     var showAddItem by remember { mutableStateOf(false) }
 
+    // 弹窗打开时把后面的内容模糊掉，形成"液态玻璃"的层次
+    val overlayBlur by animateFloatAsState(
+        targetValue = if (showAddItem) 22f else 0f,
+        animationSpec = tween(220),
+        label = "overlayBlur",
+    )
+
+    Box(Modifier.fillMaxSize()) {
     ScreenScaffold(
         title = map?.name.orEmpty(),
         navigationIcon = {
@@ -112,23 +130,29 @@ fun MapHomeScreen(
             }
         },
         actions = {
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = strings.settings)
-            }
+            GlowIconButton(
+                icon = Icons.Filled.Settings,
+                contentDescription = strings.settings,
+                onClick = onOpenSettings,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
         },
         floatingActionButton = {
             if (map != null) {
-                FloatingActionButton(
+                GlowFab(
+                    icon = Icons.Filled.Add,
+                    contentDescription = strings.addItem,
                     onClick = { showAddItem = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = strings.addItem)
-                }
+                )
             }
         },
         // 首页是开屏看到的第一个页面，不做旋转/甩字动效，免得盖住系统启动动画
         entranceAnimation = false,
+        modifier = if (overlayBlur > 0.5f) {
+            Modifier.blur(overlayBlur.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+        } else {
+            Modifier
+        },
     ) { padding ->
         if (map == null) {
             Box(
@@ -285,14 +309,61 @@ fun MapHomeScreen(
     }
 
     if (showAddItem) {
-        AddItemDialog(
-            strings = strings,
-            onConfirm = { name, target ->
-                onAddItem(name, target)
-                showAddItem = false
-            },
-            onDismiss = { showAddItem = false },
-        )
+        var itemName by remember { mutableStateOf("") }
+        var targetPoint by remember { mutableStateOf("") }
+
+        GlassOverlay(onDismiss = { showAddItem = false }) {
+            GlassSectionLabel(strings.addItem)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                strings.autosaveHint,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(18.dp))
+
+            OutlinedTextField(
+                value = itemName,
+                onValueChange = { itemName = it },
+                label = { Text(strings.itemName) },
+                singleLine = true,
+                shape = SmallShape,
+                colors = glassTextFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = targetPoint,
+                onValueChange = { targetPoint = it },
+                label = { Text(strings.targetPoint) },
+                singleLine = true,
+                shape = SmallShape,
+                colors = glassTextFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(22.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GlassTextButton(
+                    text = strings.cancel,
+                    onClick = { showAddItem = false },
+                )
+                Spacer(Modifier.width(10.dp))
+                GlassPrimaryButton(
+                    text = strings.createAndEdit,
+                    enabled = itemName.isNotBlank(),
+                    onClick = {
+                        onAddItem(itemName.trim(), targetPoint.trim())
+                        showAddItem = false
+                    },
+                )
+            }
+        }
+    }
     }
 }
 
@@ -376,70 +447,17 @@ private fun MapRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onRename) {
-                Icon(
-                    Icons.Filled.Edit,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            GlowIconButton(
+                icon = Icons.Filled.Edit,
+                contentDescription = null,
+                onClick = onRename,
+            )
+            GlowIconButton(
+                icon = Icons.Filled.Delete,
+                contentDescription = null,
+                onClick = onDelete,
+                glowColor = MaterialTheme.colorScheme.error,
+            )
         }
     }
-}
-
-/** 添加道具：只问两件事，其余细节进详情页再改。 */
-@Composable
-private fun AddItemDialog(
-    strings: Strings,
-    onConfirm: (String, String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var name by remember { mutableStateOf("") }
-    var target by remember { mutableStateOf("") }
-
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(strings.addItem) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                androidx.compose.material3.OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(strings.itemName) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                androidx.compose.material3.OutlinedTextField(
-                    value = target,
-                    onValueChange = { target = it },
-                    label = { Text(strings.targetPoint) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    strings.autosaveHint,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(name.trim(), target.trim()) },
-                enabled = name.isNotBlank(),
-            ) {
-                Text(strings.createAndEdit)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(strings.cancel) }
-        },
-    )
 }

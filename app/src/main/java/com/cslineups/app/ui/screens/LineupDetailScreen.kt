@@ -43,6 +43,7 @@ import com.cslineups.app.i18n.Strings
 import com.cslineups.app.model.LineupItem
 import com.cslineups.app.ui.components.CardShape
 import com.cslineups.app.ui.components.ConfirmDialog
+import com.cslineups.app.ui.components.GlowIconButton
 import com.cslineups.app.ui.components.ImageViewerDialog
 import com.cslineups.app.ui.components.InfoRow
 import com.cslineups.app.ui.components.ListCard
@@ -51,6 +52,8 @@ import com.cslineups.app.ui.components.ScreenScaffold
 import com.cslineups.app.ui.components.SectionTitle
 import com.cslineups.app.ui.components.SmallShape
 import com.cslineups.app.ui.label
+
+private val FavoriteYellow = Color(0xFFFFD400)
 
 @Composable
 fun LineupDetailScreen(
@@ -75,16 +78,19 @@ fun LineupDetailScreen(
         title = item.name,
         onBack = onBack,
         actions = {
-            IconButton(onClick = onToggleFavorite) {
-                Icon(
-                    imageVector = Icons.Filled.Star,
-                    contentDescription = if (isFavorite) strings.removeFavorite else strings.addFavorite,
-                    tint = if (isFavorite) Color(0xFFFFD400) else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Filled.Edit, contentDescription = strings.editItem)
-            }
+            GlowIconButton(
+                icon = Icons.Filled.Star,
+                contentDescription = if (isFavorite) strings.removeFavorite else strings.addFavorite,
+                onClick = onToggleFavorite,
+                tint = if (isFavorite) FavoriteYellow else MaterialTheme.colorScheme.onSurfaceVariant,
+                glowColor = if (isFavorite) FavoriteYellow else MaterialTheme.colorScheme.primary,
+            )
+            GlowIconButton(
+                icon = Icons.Filled.Edit,
+                contentDescription = strings.editItem,
+                onClick = onEdit,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
         },
     ) { padding ->
         LazyColumn(

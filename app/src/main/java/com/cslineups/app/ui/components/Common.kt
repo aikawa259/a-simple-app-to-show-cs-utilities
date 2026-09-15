@@ -60,6 +60,9 @@ import com.cslineups.app.ui.theme.color
 val CardShape = RoundedCornerShape(18.dp)
 val SmallShape = RoundedCornerShape(12.dp)
 val PillShape = RoundedCornerShape(50)
+val CardCornerRadius = 18.dp
+/** 圆形/胶囊用：比实际尺寸大，画的时候会被裁剪成半圆 */
+val PillRadius = 999.dp
 val PagePadding = 16.dp
 
 /** iOS 那种"按下去会轻轻缩一下"的手感。 */
@@ -97,6 +100,7 @@ fun PressableCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = modifier
             .fillMaxWidth()
+            .pressGlow(interactionSource = interaction, cornerRadius = CardCornerRadius)
             .pressScale(interaction)
             .clickable(
                 interactionSource = interaction,
@@ -119,6 +123,7 @@ fun ScreenScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     entranceAnimation: Boolean = true,
+    modifier: Modifier = Modifier,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     // 页面自己再转一点，配合导航层的缩放，看起来像从入口卡片"旋转展开"
@@ -143,14 +148,16 @@ fun ScreenScaffold(
     )
 
     Scaffold(
-        modifier = if (entranceAnimation) {
-            Modifier.graphicsLayer {
+        modifier = modifier.then(
+            if (entranceAnimation) {
+                Modifier.graphicsLayer {
                 rotationZ = pageAngle
                 transformOrigin = TransformOrigin(0.5f, 0.26f)
             }
-        } else {
-            Modifier
-        },
+            } else {
+                Modifier
+            },
+        ),
         topBar = {
             TopAppBar(
                 title = {
@@ -174,9 +181,12 @@ fun ScreenScaffold(
                 navigationIcon = {
                     when {
                         navigationIcon != null -> navigationIcon()
-                        onBack != null -> IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                        }
+                        onBack != null -> GlowIconButton(
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            onClick = onBack,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 },
                 actions = actions,
@@ -193,7 +203,12 @@ fun AddIconButton(contentDescription: String, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     IconButton(
         onClick = onClick,
-        modifier = Modifier.pressScale(interaction, pressedScale = 0.85f),
+        modifier = Modifier
+            .pressGlow(
+                interactionSource = interaction,
+                cornerRadius = PillRadius,
+            )
+            .pressScale(interaction, pressedScale = 0.85f),
     ) {
         Icon(
             imageVector = Icons.Filled.Add,
@@ -229,6 +244,11 @@ fun EntryCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
             .fillMaxWidth()
+            .pressGlow(
+                interactionSource = interaction,
+                cornerRadius = CardCornerRadius,
+                glowColor = iconColor,
+            )
             .pressScale(interaction, pressedScale = 0.96f)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
     ) {
