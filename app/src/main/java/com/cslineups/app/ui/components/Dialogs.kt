@@ -22,13 +22,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,13 +41,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cslineups.app.data.rememberStoredBitmap
 import com.cslineups.app.i18n.Strings
 
-/** 输入一段文字的弹窗，用于名称、位置、步骤、说明等。 */
+/**
+ * 输入一段文字的玻璃弹窗，用于名称、位置、步骤、说明等。
+ * 它是页面内的浮层（不是独立窗口），所以背后内容可以实时模糊。
+ */
 @Composable
 fun TextEditDialog(
     title: String,
@@ -58,33 +60,45 @@ fun TextEditDialog(
     confirmText: String,
     cancelText: String,
     multiline: Boolean = false,
+    requireNonBlank: Boolean = false,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var value by remember(initialValue) { mutableStateOf(initialValue) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { value = it },
-                label = { Text(label) },
-                singleLine = !multiline,
-                minLines = if (multiline) 4 else 1,
-                modifier = Modifier.fillMaxWidth(),
+    GlassOverlay(onDismiss = onDismiss) {
+        GlassSectionLabel(title)
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = { value = it },
+            label = { Text(label) },
+            singleLine = !multiline,
+            minLines = if (multiline) 4 else 1,
+            shape = SmallShape,
+            colors = glassTextFieldColors(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(20.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GlassTextButton(text = cancelText, onClick = onDismiss)
+            Spacer(Modifier.width(10.dp))
+            GlassPrimaryButton(
+                text = confirmText,
+                enabled = !requireNonBlank || value.isNotBlank(),
+                onClick = { onConfirm(value.trim()) },
             )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(value.trim()) }) { Text(confirmText) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(cancelText) }
-        },
-    )
+        }
+    }
 }
 
+/** 二次确认的玻璃弹窗，确认按钮用危险色。 */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -94,19 +108,31 @@ fun ConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(message) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(confirmText, color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(cancelText) }
-        },
-    )
+    GlassOverlay(onDismiss = onDismiss) {
+        GlassSectionLabel(title)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(22.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GlassTextButton(text = cancelText, onClick = onDismiss)
+            Spacer(Modifier.width(10.dp))
+            GlassPrimaryButton(
+                text = confirmText,
+                onClick = onConfirm,
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            )
+        }
+    }
 }
 
 /** 一张教学图的编辑槽：点为选图，右上角可移除。 */
@@ -189,7 +215,7 @@ fun ImageSlot(
     }
 }
 
-/** 全屏看图：左右翻页 + 双指缩放。 */
+/** 全屏看图：左右翻页 + 双指缩放（这个保持独立窗口，因为要盖住整个屏幕）。 */
 @Composable
 fun ImageViewerDialog(
     images: List<Pair<String, String?>>,
@@ -227,6 +253,7 @@ fun ImageViewerDialog(
                     images.getOrNull(pagerState.currentPage)?.first.orEmpty(),
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }

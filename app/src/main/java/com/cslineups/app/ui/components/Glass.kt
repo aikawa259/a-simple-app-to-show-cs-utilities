@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.CornerRadius
@@ -189,6 +191,8 @@ fun GlassPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    containerColor: Color = MaterialTheme.colorScheme.primary,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     val interaction = remember { MutableInteractionSource() }
     Box(
@@ -197,11 +201,11 @@ fun GlassPrimaryButton(
             .pressGlow(
                 interactionSource = interaction,
                 cornerRadius = PillRadius,
-                glowColor = MaterialTheme.colorScheme.primary,
+                glowColor = containerColor,
             )
             .pressScale(interaction, pressedScale = 0.94f)
             .background(
-                color = if (enabled) MaterialTheme.colorScheme.primary
+                color = if (enabled) containerColor
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                 shape = PillShape,
             )
@@ -218,8 +222,26 @@ fun GlassPrimaryButton(
             text = text,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = contentColor,
         )
+    }
+}
+
+/**
+ * 弹窗打开时把身后内容模糊掉，形成液态玻璃的层次。
+ * Android 12 以下 [blur] 不生效，会自动退化成普通遮罩。
+ */
+@Composable
+fun Modifier.glassBackdropBlur(visible: Boolean): Modifier {
+    val radius by animateFloatAsState(
+        targetValue = if (visible) 22f else 0f,
+        animationSpec = tween(220),
+        label = "glassBackdropBlur",
+    )
+    return if (radius > 0.5f) {
+        this.blur(radius.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+    } else {
+        this
     }
 }
 

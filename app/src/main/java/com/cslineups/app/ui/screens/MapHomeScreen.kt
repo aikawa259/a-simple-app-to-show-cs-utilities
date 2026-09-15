@@ -75,6 +75,7 @@ import com.cslineups.app.ui.components.SmallShape
 import com.cslineups.app.ui.components.TextEditDialog
 import com.cslineups.app.ui.components.UtilityBadge
 import com.cslineups.app.ui.components.glassTextFieldColors
+import com.cslineups.app.ui.components.glassBackdropBlur
 import com.cslineups.app.ui.components.pressScale
 import kotlinx.coroutines.delay
 
@@ -104,12 +105,8 @@ fun MapHomeScreen(
     var deletingMap by remember { mutableStateOf<CsMap?>(null) }
     var showAddItem by remember { mutableStateOf(false) }
 
-    // 弹窗打开时把后面的内容模糊掉，形成"液态玻璃"的层次
-    val overlayBlur by animateFloatAsState(
-        targetValue = if (showAddItem) 22f else 0f,
-        animationSpec = tween(220),
-        label = "overlayBlur",
-    )
+    // 任一弹层打开时把后面的内容模糊掉，形成"液态玻璃"的层次
+    val overlayOpen = showCreateMap || renamingMap != null || deletingMap != null || showAddItem
 
     Box(Modifier.fillMaxSize()) {
     ScreenScaffold(
@@ -148,11 +145,7 @@ fun MapHomeScreen(
         },
         // 首页是开屏看到的第一个页面，不做旋转/甩字动效，免得盖住系统启动动画
         entranceAnimation = false,
-        modifier = if (overlayBlur > 0.5f) {
-            Modifier.blur(overlayBlur.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-        } else {
-            Modifier
-        },
+        modifier = Modifier.glassBackdropBlur(overlayOpen),
     ) { padding ->
         if (map == null) {
             Box(
@@ -226,8 +219,9 @@ fun MapHomeScreen(
             initialValue = "",
             confirmText = strings.create,
             cancelText = strings.cancel,
+            requireNonBlank = true,
             onConfirm = { name ->
-                if (name.isNotBlank()) onCreateMap(name)
+                onCreateMap(name)
                 showCreateMap = false
             },
             onDismiss = { showCreateMap = false },
@@ -286,8 +280,9 @@ fun MapHomeScreen(
             initialValue = target.name,
             confirmText = strings.save,
             cancelText = strings.cancel,
+            requireNonBlank = true,
             onConfirm = { name ->
-                if (name.isNotBlank()) onRenameMap(target.id, name)
+                onRenameMap(target.id, name)
                 renamingMap = null
             },
             onDismiss = { renamingMap = null },

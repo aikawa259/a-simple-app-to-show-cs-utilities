@@ -44,6 +44,7 @@ import com.cslineups.app.model.LineupItem
 import com.cslineups.app.ui.components.CardShape
 import com.cslineups.app.ui.components.ConfirmDialog
 import com.cslineups.app.ui.components.GlowIconButton
+import com.cslineups.app.ui.components.glassBackdropBlur
 import com.cslineups.app.ui.components.ImageViewerDialog
 import com.cslineups.app.ui.components.InfoRow
 import com.cslineups.app.ui.components.ListCard
@@ -74,6 +75,7 @@ fun LineupDetailScreen(
         strings.resultImage to item.resultImage,
     )
 
+    Box(Modifier.fillMaxSize()) {
     ScreenScaffold(
         title = item.name,
         onBack = onBack,
@@ -92,6 +94,7 @@ fun LineupDetailScreen(
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         },
+        modifier = Modifier.glassBackdropBlur(confirmDelete),
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -193,6 +196,7 @@ fun LineupDetailScreen(
             },
             onDismiss = { confirmDelete = false },
         )
+    }
     }
 }
 

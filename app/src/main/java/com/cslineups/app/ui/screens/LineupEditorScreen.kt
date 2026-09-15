@@ -5,6 +5,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import com.cslineups.app.model.LineupCategory
 import com.cslineups.app.model.LineupItem
 import com.cslineups.app.model.UtilityType
 import com.cslineups.app.ui.components.ChoiceRow
+import com.cslineups.app.ui.components.glassBackdropBlur
 import com.cslineups.app.ui.components.ImageSlot
 import com.cslineups.app.ui.components.ListCard
 import com.cslineups.app.ui.components.PagePadding
@@ -95,6 +97,7 @@ fun LineupEditorScreen(
         )
     }
 
+    Box(Modifier.fillMaxSize()) {
     ScreenScaffold(
         title = strings.editItem,
         onBack = onBack,
@@ -108,6 +111,7 @@ fun LineupEditorScreen(
                 )
             }
         },
+        modifier = Modifier.glassBackdropBlur(editing != null),
     ) { padding ->
         Column(
             modifier = Modifier
@@ -270,6 +274,7 @@ fun LineupEditorScreen(
             },
             onDismiss = { editing = null },
         )
+    }
     }
 }
 

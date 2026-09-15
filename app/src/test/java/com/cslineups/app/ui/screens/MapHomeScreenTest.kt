@@ -1,17 +1,19 @@
 package com.cslineups.app.ui.screens
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cslineups.app.i18n.ZhStrings
 import com.cslineups.app.model.CsMap
 import com.cslineups.app.model.LineupItem
 import com.cslineups.app.ui.theme.CsLineupsTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -82,9 +84,23 @@ class MapHomeScreenTest {
         compose.onNodeWithText("取消").assertExists()
     }
 
-    // 说明：不测"关掉弹窗"和"新建地图弹窗"的交互——那两个走的是独立窗口（Dialog），
-    // Robolectric 下窗口移除后 Compose 不会回到空闲状态，测试会一直等到 60 秒超时。
-    // 玻璃弹窗是页面内的浮层，所以可以测。
+    @Test
+    fun `新建地图的玻璃弹窗能输入名称并创建`() {
+        var created: String? = null
+        renderHome(onCreateMap = { created = it })
+
+        compose.onNodeWithContentDescription("新建地图").performClick()
+        compose.onNodeWithText("创建").assertExists()
+
+        compose.onNode(hasSetTextAction()).performTextInput("Dust2")
+        compose.onNodeWithText("创建").performClick()
+
+        assertEquals("Dust2", created)
+    }
+
+    // 说明：弹窗改成页面内浮层（液态玻璃）之后就可以自动化测试了。
+    // 之前用独立窗口（Dialog）时，Robolectric 下窗口移除后 Compose 不会回到空闲状态，
+    // 测试会一直等到 60 秒超时，所以那几个用例当时被删掉了。
     @Test
     fun `没有地图时显示创建引导`() {
         renderHome(currentMap = null, maps = emptyList())
