@@ -83,7 +83,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1
 
 仓库地址：https://github.com/aikawa259/a-simple-app-to-show-cs-utilities
 
-本机已配置好 SSH 密钥（账号 `aikawa259`），推送不需要输入密码：
+远端使用 HTTPS，凭据保存在 Windows 凭据管理器里（首次推送时在浏览器里授权过），
+之后推送不需要再输入密码：
 
 ```powershell
 git add -A
@@ -91,10 +92,13 @@ git commit -m "..."
 git push
 ```
 
+注意：本机现有的 SSH 密钥属于 `aikawa259/git0` 仓库的**部署密钥**，只能访问那一个仓库，
+不能用它推送本仓库。若要改用 SSH，需为本仓库单独生成密钥并添加为部署密钥（勾选写权限）。
+
 换一台电脑或换账号时，用脚本设置远端：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl git@github.com:用户名/仓库名.git
+powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl https://github.com/用户名/仓库名.git
 ```
 
 装了 GitHub CLI 并登录后，也可以用 `-Create` 直接创建仓库再推送。
