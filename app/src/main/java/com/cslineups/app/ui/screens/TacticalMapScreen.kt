@@ -53,6 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -74,8 +75,9 @@ import com.cslineups.app.ui.components.UtilityBadge
 import com.cslineups.app.ui.components.copyToClipboard
 import com.cslineups.app.ui.label
 import com.cslineups.app.ui.map.clampOffset
-import com.cslineups.app.ui.map.clusterDistance
+import com.cslineups.app.ui.map.clusterPoints
 import com.cslineups.app.ui.map.fittedRect
+import com.cslineups.app.ui.map.markerTopLeft
 import com.cslineups.app.ui.map.pointLocation
 import com.cslineups.app.ui.theme.color
 import org.json.JSONArray
@@ -84,6 +86,12 @@ import kotlin.math.roundToInt
 
 private const val MIN_SCALE = 1f
 private const val MAX_SCALE = 4f
+
+/** 地图点位标记的测试标识。 */
+internal const val MAP_MARKER_TAG = "map-marker"
+
+/** 开发者模式下可拖动点位的测试标识。 */
+internal const val DEV_MARKER_TAG = "dev-marker"
 
 @Composable
 fun TacticalMapScreen(
@@ -381,19 +389,20 @@ private fun MapCanvas(
                         }
                     }
                 } else {
-                    buildClusters(groups, fitted, scale, edits).forEach { cluster ->
-                        val position = pointLocation(fitted, cluster.center)
-                        if (cluster.groups.size > 1) {
+                    val touchSizePx = with(density) { 44.dp.toPx() }
+                    val points = groups.map { targetCoordinate(it, edits) }
+
+                    clusterPoints(fitted, points, scale).forEach { cluster ->
+                        val clusterGroups = cluster.indices.map { groups[it] }
+                        val topLeft = markerTopLeft(pointLocation(fitted, cluster.center), touchSizePx)
+                        val markerModifier = Modifier
+                            .offset { IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt()) }
+                            .size(44.dp)
+                            .testTag(MAP_MARKER_TAG)
+
+                        if (clusterGroups.size > 1) {
                             Box(
-                                modifier = Modifier
-                                    .offset {
-                                        IntOffset(
-                                            (position.x - 22f).roundToInt(),
-                                            (position.y - 22f).roundToInt(),
-                                        )
-                                    }
-                                    .size(44.dp)
-                                    .clickable { onSelectCluster(cluster.groups) },
+                                modifier = markerModifier.clickable { onSelectCluster(clusterGroups) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Box(
@@ -403,24 +412,16 @@ private fun MapCanvas(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
-                                        cluster.groups.size.toString(),
+                                        clusterGroups.size.toString(),
                                         color = MaterialTheme.colorScheme.onPrimary,
                                         fontWeight = FontWeight.Bold,
                                     )
                                 }
                             }
                         } else {
-                            val group = cluster.groups.first()
+                            val group = clusterGroups.first()
                             Box(
-                                modifier = Modifier
-                                    .offset {
-                                        IntOffset(
-                                            (position.x - 22f).roundToInt(),
-                                            (position.y - 22f).roundToInt(),
-                                        )
-                                    }
-                                    .size(44.dp)
-                                    .clickable { onOpenGroup(group.id) },
+                                modifier = markerModifier.clickable { onOpenGroup(group.id) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 com.cslineups.app.ui.components.UtilityDot(group.type, size = 30.dp)
@@ -444,15 +445,17 @@ private fun DevMarker(
     onDrag: (Offset) -> Unit,
 ) {
     val current by rememberUpdatedState(normalized)
+    val position = pointLocation(fitted, normalized)
     Box(
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (fitted.left + fitted.width * normalized.x - 34f).roundToInt(),
-                    (fitted.top + fitted.height * normalized.y - 24f).roundToInt(),
+                    (position.x - 34f).roundToInt(),
+                    (position.y - 24f).roundToInt(),
                 )
             }
             .size(width = 68.dp, height = 48.dp)
+            .testTag(DEV_MARKER_TAG)
             .pointerInput(dragKey, fitted, scale) {
                 var base = Offset.Zero
                 var total = Offset.Zero
@@ -615,46 +618,11 @@ private data class EditedPoint(
         )
 }
 
-private data class Cluster(val groups: List<LineupGroup>, val center: Offset)
-
 private fun targetCoordinate(group: LineupGroup, edits: Map<String, Offset>): Offset =
     edits[group.id] ?: Offset(group.targetMapX.toFloat(), group.targetMapY.toFloat())
 
 private fun startCoordinate(variant: LineupVariant, edits: Map<String, Offset>): Offset =
     edits[variant.id] ?: Offset(variant.startMapX.toFloat(), variant.startMapY.toFloat())
-
-private fun buildClusters(
-    groups: List<LineupGroup>,
-    fitted: Rect,
-    scale: Float,
-    edits: Map<String, Offset>,
-): List<Cluster> {
-    val limit = clusterDistance(scale)
-    val clusters = mutableListOf<Cluster>()
-
-    groups.forEach { group ->
-        val point = pointLocation(fitted, targetCoordinate(group, edits))
-        val index = clusters.indexOfFirst { cluster ->
-            (cluster.center - point).getDistance() * maxOf(scale, 1f) <= limit
-        }
-
-        if (index >= 0) {
-            val existing = clusters[index]
-            val count = existing.groups.size
-            val newCenter = Offset(
-                x = (existing.center.x * count + point.x) / (count + 1),
-                y = (existing.center.y * count + point.y) / (count + 1),
-            )
-            clusters[index] = existing.copy(
-                groups = existing.groups + group,
-                center = newCenter,
-            )
-        } else {
-            clusters += Cluster(groups = listOf(group), center = point)
-        }
-    }
-    return clusters
-}
 
 private fun formatCoordinate(coordinate: Offset): String =
     "%.3f, %.3f".format(coordinate.x, coordinate.y)

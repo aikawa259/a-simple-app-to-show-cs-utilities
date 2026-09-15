@@ -2,6 +2,7 @@ package com.cslineups.app.ui.map
 
 import androidx.compose.ui.geometry.Offset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -78,5 +79,42 @@ class MapGeometryTest {
         assertEquals(76f, clusterDistance(1.5f), 0f)
         assertEquals(52f, clusterDistance(2f), 0f)
         assertEquals(36f, clusterDistance(3f), 0f)
+    }
+
+    @Test
+    fun `三个真实点位渲染后都在可视区内`() {
+        val fitted = fittedRect(imageWidth, imageHeight, 412f, 600f)
+        val coordinates = listOf(
+            Offset(0.46f, 0.36f), // VIP 烟
+            Offset(0.69f, 0.50f), // 警家烟
+            Offset(0.42f, 0.62f), // Jungle 烟
+        )
+
+        val clusters = clusterPoints(fitted, coordinates, 1f)
+        assertEquals(coordinates.size, clusters.size)
+
+        clusters.forEach { cluster ->
+            assertTrue(
+                "聚合中心必须保持归一化坐标，实际为 ${cluster.center}",
+                cluster.center.x in 0f..1f && cluster.center.y in 0f..1f,
+            )
+
+            val topLeft = markerTopLeft(pointLocation(fitted, cluster.center), 44f)
+            assertTrue("标记横向不可见：$topLeft", topLeft.x > -44f && topLeft.x < 412f)
+            assertTrue("标记纵向不可见：$topLeft", topLeft.y > -44f && topLeft.y < 600f)
+        }
+    }
+
+    @Test
+    fun `相邻点位在低缩放下合并`() {
+        val fitted = fittedRect(imageWidth, imageHeight, 412f, 600f)
+        val clusters = clusterPoints(
+            fitted,
+            listOf(Offset(0.46f, 0.36f), Offset(0.47f, 0.37f)),
+            1f,
+        )
+
+        assertEquals(1, clusters.size)
+        assertEquals(listOf(0, 1), clusters[0].indices)
     }
 }

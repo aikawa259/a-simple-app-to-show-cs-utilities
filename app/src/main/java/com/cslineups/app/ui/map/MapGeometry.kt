@@ -44,6 +44,12 @@ fun pointLocation(fitted: Rect, normalized: Offset): Offset = Offset(
     y = fitted.top + fitted.height * normalized.y,
 )
 
+/** 标记的左上角：以点位为中心对齐。 */
+fun markerTopLeft(position: Offset, markerSizePx: Float): Offset = Offset(
+    x = position.x - markerSizePx / 2f,
+    y = position.y - markerSizePx / 2f,
+)
+
 /** 平移边界：放大后不允许把地图拖出可视区；缩回 1 倍时重新居中。 */
 fun clampOffset(
     offset: Offset,
@@ -81,3 +87,37 @@ fun clusterDistance(scale: Float): Float = when {
     else -> 36f
 }
 
+/**
+ * 一组需要合并显示的点位。
+ *
+ * [indices] 指向传入的点位列表，[center] 始终是**归一化坐标**（0–1）：
+ * 渲染时再用 [pointLocation] 换成像素，避免像素与归一化坐标混用。
+ */
+data class PointCluster(val indices: List<Int>, val center: Offset)
+
+fun clusterPoints(fitted: Rect, points: List<Offset>, scale: Float): List<PointCluster> {
+    val limit = clusterDistance(scale)
+    val clusters = mutableListOf<PointCluster>()
+
+    points.forEachIndexed { index, point ->
+        val pointPx = pointLocation(fitted, point)
+        val found = clusters.indexOfFirst { cluster ->
+            (pointLocation(fitted, cluster.center) - pointPx).getDistance() * maxOf(scale, 1f) <= limit
+        }
+
+        if (found >= 0) {
+            val existing = clusters[found]
+            val count = existing.indices.size
+            clusters[found] = PointCluster(
+                indices = existing.indices + index,
+                center = Offset(
+                    x = (existing.center.x * count + point.x) / (count + 1),
+                    y = (existing.center.y * count + point.y) / (count + 1),
+                ),
+            )
+        } else {
+            clusters += PointCluster(indices = listOf(index), center = point)
+        }
+    }
+    return clusters
+}
