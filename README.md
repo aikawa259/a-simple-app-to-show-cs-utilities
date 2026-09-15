@@ -1,130 +1,114 @@
 # CS Lineups（Android）
 
-CS 战术道具（lineup）教学 App 的安卓实现，效果对齐 iOS 项目
-[`lec444c/My-First-IOS-App`](https://github.com/lec444c/My-First-IOS-App)（CSTacticsApp / AimNade）。
+一个自己整理 CS 道具的安卓 App：**地图由你自己建，道具由你自己录**，每条道具可以记录站位图、瞄点图、效果图。
+
+最初的版本是照着 iOS 项目 [`lec444c/My-First-IOS-App`](https://github.com/lec444c/My-First-IOS-App) 复刻的，
+后来按需求改成了"用户自建地图 + 自建道具"的形态，并移除了原来的 2D 战术地图功能。
 
 ## 下载安装（安卓手机）
 
-**免登录直链**（推荐发给别人时用这个，链接不会随版本变化）：
+**免登录直链**（链接不随版本变化，可以直接发给别人）：
 
 https://github.com/aikawa259/a-simple-app-to-show-cs-utilities/releases/latest/download/CSLineups-debug.apk
 
-安装步骤：打开链接下载 → 浏览器提示时选择用系统安装器打开 → 系统要求允许"安装未知来源应用"
-→ 出现"Play 保护机制"警告时点"更多信息" → "仍要安装"。
+安装步骤：打开链接下载 → 浏览器提示时选择用系统安装器打开 → 允许"安装未知来源应用"
+→ 出现"Play 保护机制"警告时点"更多信息" → "仍要安装"。要求 Android 8.0 及以上。
 
-要求 Android 8.0 及以上。当前是 debug 包，供自测使用。
+## 功能
 
-## 目标效果
+**地图首页**
 
-- 地图列表 → 地图首页（2D 战术地图 / 道具列表 / 搜索 / 收藏 四个入口）
-- **2D 战术地图**：雷达图 + 按归一化坐标打点、点位聚合、1–4 倍缩放与平移、区域/道具类型筛选
-- 道具列表（按区域分组）→ 点位详情 → 丢法详情（站位图 / 瞄点图 / 落点图，可翻页放大）
-- 搜索（中英文与去空格匹配）、收藏（点位与丢法分别收藏）、设置（语言、开发者模式）、关于
-- **开发者模式**：拖动点位校正坐标，实时显示坐标，一键复制坐标或整包 JSON
-- 中英文双语，App 内切换（不跟随系统，与 iOS 版一致）
+- 左上角 `+`：新建地图，输入地图名即可（可以重命名、删除）
+- 标题（地图名 + 箭头）：点开全部地图列表，切换地图
+- 三个入口：道具列表 / 搜索 / 收藏
+- 右下角 `+`：添加道具，只需填「道具名」和「投掷点」，创建后直接进编辑页
+- 首次启动自带一个示例地图 Mirage（6 条道具），可以删掉
+
+**道具详情页**：概览、起始位置 / 目标位置、投掷步骤、三张教学图（点击全屏、可双指放大）、说明；
+右上角星标收藏，铅笔进编辑页。
+
+**道具编辑页**（改动自动保存，不用点保存）：
+名称、类型、阵营、分类、难度、起始位置、目标位置、投掷步骤、说明、站位图 / 瞄点图 / 效果图。
+图片从手机相册选，会复制进应用私有目录，不需要任何存储权限。
+
+**其他**：中英文界面切换（设置页）、收藏与语言持久化。
 
 ## 技术决策
 
-| 项目 | 选择 | 原因 |
+| 项目 | 选择 | 说明 |
 |---|---|---|
-| 平台 | Kotlin + Jetpack Compose | 与 iOS 的 SwiftUI 结构一一对应，移植成本最低 |
-| minSdk / targetSdk | 26 / 35 | 26 起可用自适应图标（不需要位图图标资源） |
-| 内容数据 | 复用 iOS 版 `lineups_mirage.json` | 文件结构完全一致，直接放进 `assets/`，未改动一个字段 |
-| 解析 | `org.json`（系统自带） | 零依赖，避免额外插件与版本约束 |
-| 文本 | 自建 `Strings` 接口 + 中英文实现 | iOS 版是 App 内切换语言，用 `strings.xml` 需要重建 Context，很别扭 |
-| 持久化 | DataStore（Preferences） | 对应 iOS 的 `UserDefaults` |
+| 平台 | Kotlin + Jetpack Compose | 单 Activity + Navigation Compose，页面切换用弹簧动画 |
+| 数据 | 用户数据存 `filesDir/maps.json` | 用系统自带 `org.json` 读写，零额外依赖；图片存 `filesDir/images/` |
+| 状态 | `MapRepository` + `StateFlow` | 增删改后立即落盘，界面随 flow 自动刷新 |
+| 文案 | 自建 `Strings` 接口 + 中英文实现 | App 内切换语言，不依赖系统语言 |
+| 动效 | 弹簧动画为主 | 卡片按压缩放、胶囊选中回弹、页面滑入滑出、空状态淡入 |
 
 ## 目录结构
 
 ```
-app/src/main/
-  assets/lineups_mirage.json          内容数据（与 iOS 版同构）
-  res/drawable/mirage_map.jpg         雷达图
-  java/com/cslineups/app/
-    model/                            数据模型
-    data/                             JSON 读取、设置与收藏持久化
-    i18n/                             中英文文案
-    ui/theme/                         配色
-    ui/components/                    徽章、点位、功能卡
-    ui/screens/                       各页面
-    ui/AppNav.kt                      导航图
-docs/map-math-probe/                  坐标换算与手势的验证页（见下）
+app/src/main/java/com/cslineups/app/
+  model/          数据模型（地图 / 道具 / 枚举）
+  data/           本地存储、图片导入、设置与收藏
+  i18n/           中英文界面文案
+  ui/theme/       配色
+  ui/components/  卡片、徽章、弹窗、图片槽、动效工具
+  ui/screens/     地图首页、道具列表、详情、编辑、搜索、收藏、设置、关于
+app/src/test/     单元测试与界面渲染测试
+scripts/          一键编译脚本、GitHub 推送脚本
 ```
 
-## 地图坐标换算（已验证）
-
-点位在数据里是 0–1 的归一化坐标，渲染时先按图片宽高比算出居中后的适配矩形，再映射坐标：
+## 测试
 
 ```
-fit(图片宽高比, 容器宽高比)  →  居中矩形  →  点位 = 矩形 left/top + 矩形宽高 × 归一化坐标
-缩放与平移作用于包含图片和点位的整层，因此点位随缩放一起放大（与 iOS 的 UIScrollView 行为一致）
+powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1
 ```
 
-这段逻辑已在 `docs/map-math-probe/index.html` 里用真实数据验证通过（浏览器打开即可，手机上也能开）。
+- `MapRepositoryTest`（7 项）：示例数据、新建地图、添加 / 编辑 / 删除道具、重命名、删空后不复活
+- `ItemSearchTest`（5 项）：按名称 / 位置 / 类型 / 难度搜索，忽略大小写与空格
+- `MapHomeScreenTest`（3 项）：首页三个入口、底部加号、无地图时的引导
 
-## 待办与已知问题
+共 15 项，全部通过。
 
-- [x] 可编译：`assembleDebug` 通过，产出 10.3 MB 的 debug APK
-- [x] 测试 11 项通过：坐标换算与聚合 8 项（`MapGeometryTest`），界面渲染 3 项（`TacticalMapScreenTest`，用 Robolectric 在电脑上真正渲染地图页，确认 3 个点位可见、开发者模式 9 个点位齐全）
-- [x] Gradle Wrapper 已生成（`gradle/wrapper/gradle-wrapper.jar`）
-- [ ] **手势未在真机验证**：缩放、平移、拖动点位需要在手机上确认手感
-- [ ] **内容坐标需要校正**：现有 3 组点位与雷达图自身的标注对不上（例如「VIP 烟」的点落在中路北侧而不是 VIP 附近，「警家烟」的点落在中远匪口而不是警家）。iOS 版内置开发者模式就是用来手工校准的，安卓版保留同一能力
-- [ ] 教学图（站位/瞄点/落点）在数据里被引用，但项目中没有对应图片，两端都走上占位逻辑
-- [ ] 还没有正式签名（当前是 debug 包，自己安装没问题）
-
-## 修复记录
-
-- 地图点位不可见：聚合结果的中心点已经是像素坐标，渲染时又被当成归一化坐标换算了一次，
-  点位被推到可视区外约 30 万像素处（节点仍在，但可见区域为 0×0）。
-  已改为统一在归一化坐标体系里传递，并补上 `TacticalMapScreenTest` 防止复发。
+> 未覆盖：弹窗的打开/关闭交互。Robolectric 环境下弹窗打开后 Compose 不会回到空闲状态，
+> 测试会一直等到超时，因此这类交互留给真机验证（仓库层逻辑已被上面的测试覆盖）。
 
 ## 编译
 
-本机工具链放在工程同级的 `tools` 目录（Android SDK、Gradle、依赖缓存），
-一键编译脚本会自动使用它，并把 APK 复制到同级的 `dist` 目录：
+工具链放在工程同级的 `tools` 目录（Android SDK、Gradle、依赖缓存），脚本会自动使用：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1
 ```
 
-如果没有 `tools`，脚本会退回使用仓库自带 wrapper（`gradlew.bat`），
-需要本机已有 Android SDK，并在 `local.properties` 里写好 `sdk.dir`。
+产物会复制到同级 `dist\CSLineups-debug.apk`。没有 `tools` 时会退回用仓库自带的 `gradlew`，
+此时需要本机已有 Android SDK 并在 `local.properties` 写好 `sdk.dir`。
 
-## 上传到 GitHub
-
-仓库地址：https://github.com/aikawa259/a-simple-app-to-show-cs-utilities
-
-远端使用 HTTPS，凭据保存在 Windows 凭据管理器里（首次推送时在浏览器里授权过），
-之后推送不需要再输入密码：
-
-> **注意（2026-09-15）**：因为调试过程中令牌意外出现在对话里，该令牌已被吊销、
-> 本机保存的凭据也已清除。现在执行 `git push` 会弹出一次浏览器授权窗口，
-> 点一下即可恢复；仓库和已发布的 Release 不受影响。
-
-```powershell
-git add -A
-git commit -m "..."
-git push
-```
-
-注意：本机现有的 SSH 密钥属于 `aikawa259/git0` 仓库的**部署密钥**，只能访问那一个仓库，
-不能用它推送本仓库。若要改用 SSH，需为本仓库单独生成密钥并添加为部署密钥（勾选写权限）。
-
-换一台电脑或换账号时，用脚本设置远端：
+## 上传与发版
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl https://github.com/用户名/仓库名.git
 ```
 
-装了 GitHub CLI 并登录后，也可以用 `-Create` 直接创建仓库再推送。
+发新版本时：重新编译后，在 GitHub 网页 Releases → Draft a new release，把 `dist\CSLineups-debug.apk`
+拖进附件区，**附件名保持 `CSLineups-debug.apk`**，上面那条安装直链就永远指向最新版。
 
-## 发布新版本（让手机用户能下载）
+## 已知问题
 
-Release 里的附件固定叫 `CSLineups-debug.apk`，所以上面那条 `/releases/latest/download/...` 链接
-永远指向最新版，不用改。发新版本时：
+- 图片目前只能从相册选，不支持拍照
+- 道具列表按分类分组，顺序固定，暂不支持拖动排序
+- 数据只存在本机，没有云同步 / 导入导出
+- 当前是 debug 包，自己装没问题；上架需要正式签名
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1   # 先重新编译
-# 再到 GitHub 网页 Releases → Draft a new release，填新 tag（如 v0.1.1）、
-# 把 dist 里的 APK 拖进附件区，并把附件名叫成 CSLineups-debug.apk，然后 Publish
-```
+## 变更记录
+
+**0.2.0**
+
+- 移除 2D 战术地图（含点位坐标、拖动校准、开发者模式），相关代码与测试一并删除
+- 改为用户自建地图：新建 / 重命名 / 删除地图，点标题切换地图
+- 道具改为一级结构：添加时只填名称与投掷点，其余细节在编辑页补全（全部可编辑，自动保存）
+- 支持为每条道具选择三张教学图，全屏查看时可双指放大
+
+**0.1.0**
+
+- 首个可安装版本，效果对齐 iOS 项目
+- 修复地图上点位不显示（坐标被换算两次，点位跑到可视区外约 30 万像素处）

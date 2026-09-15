@@ -69,7 +69,7 @@ try {
     $apk = Join-Path $repoRoot "app\build\outputs\apk\debug\app-debug.apk"
     $dist = Join-Path $workspace "dist"
     New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $target = Join-Path $dist "CSLineups-0.1.0-debug.apk"
+    $target = Join-Path $dist "CSLineups-debug.apk"
     Copy-Item -LiteralPath $apk -Destination $target -Force
 
     Write-Host ""

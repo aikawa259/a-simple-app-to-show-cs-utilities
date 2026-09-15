@@ -1,49 +1,147 @@
 package com.cslineups.app.ui.screens
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cslineups.app.i18n.Strings
 import com.cslineups.app.model.CsMap
-import com.cslineups.app.model.Lang
-import com.cslineups.app.ui.components.FeatureCard
+import com.cslineups.app.ui.components.AddIconButton
+import com.cslineups.app.ui.components.ConfirmDialog
+import com.cslineups.app.ui.components.EmptyState
+import com.cslineups.app.ui.components.EntryCard
 import com.cslineups.app.ui.components.PagePadding
+import com.cslineups.app.ui.components.PressableCard
 import com.cslineups.app.ui.components.ScreenScaffold
+import com.cslineups.app.ui.components.SmallShape
+import com.cslineups.app.ui.components.TextEditDialog
+import com.cslineups.app.ui.components.UtilityBadge
+import com.cslineups.app.ui.components.pressScale
 
+/**
+ * 地图首页：左上角加号新建地图，标题点开地图列表，
+ * 主体是道具列表 / 搜索 / 收藏三个入口，右下角加号添加道具。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapHomeScreen(
-    map: CsMap,
-    lang: Lang,
+    map: CsMap?,
+    maps: List<CsMap>,
     strings: Strings,
-    onOpenMap: () -> Unit,
+    onSelectMap: (String) -> Unit,
+    onCreateMap: (String) -> Unit,
+    onRenameMap: (String, String) -> Unit,
+    onDeleteMap: (String) -> Unit,
     onOpenList: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenFavorites: () -> Unit,
     onOpenSettings: () -> Unit,
+    onAddItem: (String, String) -> Unit,
 ) {
+    var showMapList by remember { mutableStateOf(false) }
+    var showCreateMap by remember { mutableStateOf(false) }
+    var renamingMap by remember { mutableStateOf<CsMap?>(null) }
+    var deletingMap by remember { mutableStateOf<CsMap?>(null) }
+    var showAddItem by remember { mutableStateOf(false) }
+
     ScreenScaffold(
-        title = map.name.value(lang),
+        title = map?.name.orEmpty(),
+        navigationIcon = {
+            AddIconButton(contentDescription = strings.newMap) { showCreateMap = true }
+        },
+        titleContent = {
+            if (map != null) {
+                MapTitle(
+                    name = map.name,
+                    isExample = map.isExample,
+                    exampleLabel = strings.exampleMap,
+                    onClick = { showMapList = true },
+                )
+            } else {
+                Text(strings.appName, fontWeight = FontWeight.SemiBold)
+            }
+        },
         actions = {
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Filled.Settings, contentDescription = strings.settings)
             }
         },
+        floatingActionButton = {
+            if (map != null) {
+                FloatingActionButton(
+                    onClick = { showAddItem = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = strings.addItem)
+                }
+            }
+        },
     ) { padding ->
+        if (map == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    EmptyState(
+                        icon = Icons.Filled.Add,
+                        title = strings.emptyMaps,
+                        message = strings.emptyMapsMessage,
+                    )
+                    TextButton(onClick = { showCreateMap = true }) { Text(strings.newMap) }
+                }
+            }
+            return@ScreenScaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -52,35 +150,282 @@ fun MapHomeScreen(
                 .padding(PagePadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            FeatureCard(
-                icon = Icons.Filled.Place,
-                title = strings.tacticalMap,
-                subtitle = strings.featureMapSubtitle,
-                iconColor = Color(0xFF0A84FF),
-                onClick = onOpenMap,
-            )
-            FeatureCard(
+            EntryCard(
                 icon = Icons.AutoMirrored.Filled.List,
                 title = strings.utilityList,
-                subtitle = strings.featureListSubtitle,
+                subtitle = strings.listSubtitle,
                 iconColor = Color(0xFF34C759),
                 onClick = onOpenList,
             )
-            FeatureCard(
+            EntryCard(
                 icon = Icons.Filled.Search,
                 title = strings.search,
-                subtitle = strings.featureSearchSubtitle,
+                subtitle = strings.searchSubtitle,
                 iconColor = Color(0xFFFF9F0A),
                 onClick = onOpenSearch,
             )
-            FeatureCard(
+            EntryCard(
                 icon = Icons.Filled.Star,
                 title = strings.favorites,
-                subtitle = strings.featureFavoritesSubtitle,
+                subtitle = strings.favoritesSubtitle,
                 iconColor = Color(0xFFFFD400),
                 onClick = onOpenFavorites,
             )
+
+            Text(
+                strings.itemCount(map.items.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+            )
+        }
+    }
+
+    if (showCreateMap) {
+        TextEditDialog(
+            title = strings.newMap,
+            label = strings.mapName,
+            initialValue = "",
+            confirmText = strings.create,
+            cancelText = strings.cancel,
+            onConfirm = { name ->
+                if (name.isNotBlank()) onCreateMap(name)
+                showCreateMap = false
+            },
+            onDismiss = { showCreateMap = false },
+        )
+    }
+
+    if (showMapList) {
+        ModalBottomSheet(onDismissRequest = { showMapList = false }) {
+            Column(Modifier.padding(bottom = 24.dp)) {
+                Text(
+                    strings.maps,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(start = PagePadding, bottom = 8.dp),
+                )
+                LazyColumn {
+                    items(maps, key = { it.id }) { item ->
+                        MapRow(
+                            map = item,
+                            selected = item.id == map?.id,
+                            exampleLabel = strings.exampleMap,
+                            itemCount = strings.itemCount(item.items.size),
+                            onSelect = {
+                                onSelectMap(item.id)
+                                showMapList = false
+                            },
+                            onRename = {
+                                renamingMap = item
+                                showMapList = false
+                            },
+                            onDelete = {
+                                deletingMap = item
+                                showMapList = false
+                            },
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        showMapList = false
+                        showCreateMap = true
+                    },
+                    modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(strings.newMap)
+                }
+            }
+        }
+    }
+
+    renamingMap?.let { target ->
+        TextEditDialog(
+            title = strings.renameMap,
+            label = strings.mapName,
+            initialValue = target.name,
+            confirmText = strings.save,
+            cancelText = strings.cancel,
+            onConfirm = { name ->
+                if (name.isNotBlank()) onRenameMap(target.id, name)
+                renamingMap = null
+            },
+            onDismiss = { renamingMap = null },
+        )
+    }
+
+    deletingMap?.let { target ->
+        ConfirmDialog(
+            title = strings.deleteConfirmTitle,
+            message = strings.deleteMapConfirm,
+            confirmText = strings.delete,
+            cancelText = strings.cancel,
+            onConfirm = {
+                onDeleteMap(target.id)
+                deletingMap = null
+            },
+            onDismiss = { deletingMap = null },
+        )
+    }
+
+    if (showAddItem) {
+        AddItemDialog(
+            strings = strings,
+            onConfirm = { name, target ->
+                onAddItem(name, target)
+                showAddItem = false
+            },
+            onDismiss = { showAddItem = false },
+        )
+    }
+}
+
+/** 标题：地图名 + 小箭头，点开地图列表。 */
+@Composable
+private fun MapTitle(
+    name: String,
+    isExample: Boolean,
+    exampleLabel: String,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .pressScale(interaction, pressedScale = 0.94f)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(vertical = 4.dp, horizontal = 2.dp),
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Icon(
+            imageVector = Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+        )
+        if (isExample) {
+            Spacer(Modifier.width(6.dp))
+            UtilityBadge(exampleLabel, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
+@Composable
+private fun MapRow(
+    map: CsMap,
+    selected: Boolean,
+    exampleLabel: String,
+    itemCount: String,
+    onSelect: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    PressableCard(
+        onClick = onSelect,
+        modifier = Modifier.padding(horizontal = PagePadding, vertical = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surface,
+                        shape = SmallShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = map.name.take(1).uppercase(),
+                    color = if (selected) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(map.name, style = MaterialTheme.typography.titleSmall)
+                    if (map.isExample) {
+                        Spacer(Modifier.width(6.dp))
+                        UtilityBadge(exampleLabel, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Text(
+                    itemCount,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onRename) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** 添加道具：只问两件事，其余细节进详情页再改。 */
+@Composable
+private fun AddItemDialog(
+    strings: Strings,
+    onConfirm: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var target by remember { mutableStateOf("") }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(strings.addItem) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(strings.itemName) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = target,
+                    onValueChange = { target = it },
+                    label = { Text(strings.targetPoint) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    strings.autosaveHint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name.trim(), target.trim()) },
+                enabled = name.isNotBlank(),
+            ) {
+                Text(strings.createAndEdit)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(strings.cancel) }
+        },
+    )
+}

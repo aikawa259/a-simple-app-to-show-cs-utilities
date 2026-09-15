@@ -1,6 +1,7 @@
 package com.cslineups.app.ui
 
 import com.cslineups.app.i18n.Strings
+import com.cslineups.app.model.Difficulty
 import com.cslineups.app.model.LineupCategory
 import com.cslineups.app.model.UtilityType
 
@@ -19,9 +20,8 @@ fun UtilityType.label(strings: Strings): String = when (this) {
     UtilityType.HE -> strings.he
 }
 
-fun String.difficultyLabel(strings: Strings): String = when (this) {
-    "Easy" -> strings.difficultyEasy
-    "Medium" -> strings.difficultyMedium
-    else -> this
+fun Difficulty.label(strings: Strings): String = when (this) {
+    Difficulty.EASY -> strings.difficultyEasy
+    Difficulty.MEDIUM -> strings.difficultyMedium
+    Difficulty.HARD -> strings.difficultyHard
 }
-

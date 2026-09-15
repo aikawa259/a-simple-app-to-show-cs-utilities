@@ -14,27 +14,21 @@ private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 data class PrefsState(
     val language: Lang = Lang.SYSTEM,
-    val developerMode: Boolean = false,
-    val favoriteGroups: Set<String> = emptySet(),
-    val favoriteVariants: Set<String> = emptySet(),
+    val favoriteItems: Set<String> = emptySet(),
 )
 
 /** 对应 iOS 版的 UserDefaults：语言、开发者模式、收藏。 */
 class Prefs(private val context: Context) {
 
     private val languageKey = stringPreferencesKey("language")
-    private val developerModeKey = booleanPreferencesKey("developer_mode")
-    private val favoriteGroupsKey = stringSetPreferencesKey("favorite_group_ids")
-    private val favoriteVariantsKey = stringSetPreferencesKey("favorite_variant_ids")
+    private val favoriteItemsKey = stringSetPreferencesKey("favorite_item_ids")
 
     val state: Flow<PrefsState> = context.settingsDataStore.data.map { stored ->
         PrefsState(
             language = stored[languageKey]
                 ?.let { raw -> Lang.entries.firstOrNull { it.name == raw } }
                 ?: Lang.SYSTEM,
-            developerMode = stored[developerModeKey] ?: false,
-            favoriteGroups = stored[favoriteGroupsKey] ?: emptySet(),
-            favoriteVariants = stored[favoriteVariantsKey] ?: emptySet(),
+            favoriteItems = stored[favoriteItemsKey] ?: emptySet(),
         )
     }
 
@@ -42,19 +36,9 @@ class Prefs(private val context: Context) {
         context.settingsDataStore.edit { it[languageKey] = language.name }
     }
 
-    suspend fun setDeveloperMode(enabled: Boolean) {
-        context.settingsDataStore.edit { it[developerModeKey] = enabled }
-    }
-
-    suspend fun toggleFavoriteGroup(groupId: String) {
+    suspend fun toggleFavorite(itemId: String) {
         context.settingsDataStore.edit { stored ->
-            stored[favoriteGroupsKey] = stored[favoriteGroupsKey].orEmpty().toggle(groupId)
-        }
-    }
-
-    suspend fun toggleFavoriteVariant(variantId: String) {
-        context.settingsDataStore.edit { stored ->
-            stored[favoriteVariantsKey] = stored[favoriteVariantsKey].orEmpty().toggle(variantId)
+            stored[favoriteItemsKey] = stored[favoriteItemsKey].orEmpty().toggle(itemId)
         }
     }
 

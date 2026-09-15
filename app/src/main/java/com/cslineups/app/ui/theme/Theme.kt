@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.cslineups.app.model.Difficulty
 import com.cslineups.app.model.UtilityType
 
 val SmokeGray = Color(0xFF8E8E93)
@@ -21,6 +22,14 @@ val UtilityType.color: Color
         UtilityType.FLASH -> FlashYellow
         UtilityType.MOLOTOV -> MolotovOrange
         UtilityType.HE -> HeGreen
+    }
+
+/** 难度用颜色区分：简单偏绿、中等偏黄、困难偏红。 */
+val Difficulty.color: Color
+    get() = when (this) {
+        Difficulty.EASY -> Color(0xFF34C759)
+        Difficulty.MEDIUM -> Color(0xFFFF9F0A)
+        Difficulty.HARD -> Color(0xFFFF3B30)
     }
 
 private val DarkColors = darkColorScheme(
