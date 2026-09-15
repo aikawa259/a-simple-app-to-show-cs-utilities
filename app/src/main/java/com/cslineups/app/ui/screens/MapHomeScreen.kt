@@ -127,6 +127,8 @@ fun MapHomeScreen(
                 }
             }
         },
+        // 首页是开屏看到的第一个页面，不做旋转/甩字动效，免得盖住系统启动动画
+        entranceAnimation = false,
     ) { padding ->
         if (map == null) {
             Box(

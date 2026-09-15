@@ -118,30 +118,58 @@ fun ScreenScaffold(
     titleContent: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
+    entranceAnimation: Boolean = true,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     // 页面自己再转一点，配合导航层的缩放，看起来像从入口卡片"旋转展开"
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
     val pageAngle by animateFloatAsState(
-        targetValue = if (entered) 0f else -5f,
+        targetValue = if (entered) 0f else -16f,
         animationSpec = spring(
-            dampingRatio = 0.7f,
+            dampingRatio = 0.55f,
             stiffness = Spring.StiffnessLow,
         ),
         label = "pageAngle",
     )
+    // 标题像被甩回来一样落位：先冲进来再带过冲地归位
+    val titleSettle by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.34f,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "titleSettle",
+    )
 
     Scaffold(
-        modifier = Modifier.graphicsLayer {
-            rotationZ = pageAngle
-            transformOrigin = TransformOrigin(0.5f, 0.26f)
+        modifier = if (entranceAnimation) {
+            Modifier.graphicsLayer {
+                rotationZ = pageAngle
+                transformOrigin = TransformOrigin(0.5f, 0.26f)
+            }
+        } else {
+            Modifier
         },
         topBar = {
             TopAppBar(
                 title = {
-                    if (titleContent != null) titleContent()
-                    else Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Box(
+                        modifier = if (entranceAnimation) {
+                            Modifier.graphicsLayer {
+                                val settled = titleSettle
+                                translationX = (1f - settled) * size.width * 0.55f
+                                rotationZ = (1f - settled) * -18f
+                                alpha = (0.15f + 0.85f * settled).coerceIn(0f, 1f)
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ) {
+                        if (titleContent != null) titleContent()
+                        else Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 },
                 navigationIcon = {
                     when {

@@ -98,5 +98,42 @@ foreach ($entry in $densities.GetEnumerator()) {
     Write-Host ("wrote {0} ({1}x{1})" -f $outPath.Replace($repoRoot, ""), $size)
 }
 
+# 4) plain PNG icons as a fallback: many third-party launchers ignore adaptive
+#    icons and would otherwise show the system default icon.
+$legacy = [ordered]@{ "mdpi" = 48; "hdpi" = 72; "xhdpi" = 96; "xxhdpi" = 144; "xxxhdpi" = 192 }
+foreach ($entry in $legacy.GetEnumerator()) {
+    $size = [int]$entry.Value
+    $outDir = Join-Path $resDir ("mipmap-" + $entry.Key)
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+    # square: white background, logo at 72% of the icon width
+    $square = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($square)
+    $g.Clear([System.Drawing.Color]::White)
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $w = [int]($size * 0.72)
+    $h = [int]($masterHeight * $w / $masterWidth)
+    $g.DrawImage($master, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
+    $g.Dispose()
+    $square.Save((Join-Path $outDir "ic_launcher.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $square.Dispose()
+
+    # round: white circle, logo kept inside the circle
+    $round = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($round)
+    $g.Clear([System.Drawing.Color]::Transparent)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+    $g.FillEllipse([System.Drawing.Brushes]::White, 0, 0, $size - 1, $size - 1)
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $w = [int]($size * 0.62)
+    $h = [int]($masterHeight * $w / $masterWidth)
+    $g.DrawImage($master, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
+    $g.Dispose()
+    $round.Save((Join-Path $outDir "ic_launcher_round.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $round.Dispose()
+
+    Write-Host ("wrote mipmap-{0}\ic_launcher.png + ic_launcher_round.png ({1}x{1})" -f $entry.Key, $size)
+}
+
 $master.Dispose(); $cropped.Dispose(); $src.Dispose()
 Write-Host "done."
