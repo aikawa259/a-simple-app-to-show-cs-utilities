@@ -3,23 +3,24 @@ Generate launcher icons from a source logo image.
 
 Usage:
     powershell -ExecutionPolicy Bypass -File scripts\make-icons.ps1
+    powershell -ExecutionPolicy Bypass -File scripts\make-icons.ps1 -Style light
     powershell -ExecutionPolicy Bypass -File scripts\make-icons.ps1 -Source path\to\logo.png
 
 What it does:
   1. crops the source to the logo's bounding box (drops the empty margin)
-  2. removes the white background so the logo can sit on any background color
-  3. writes adaptive-icon foreground layers for every density
-
-The adaptive icon itself is res/mipmap-anydpi-v26/ic_launcher.xml
-(white background + this foreground), so no legacy raster icons are needed
-for minSdk 26+.
+  2. keys out the white background
+  3. dark style (default): flips the black lettering to white so it reads on a
+     dark tile; light style keeps the original black-on-white brand look
+  4. writes adaptive-icon foreground layers, plain square/round fallback icons
+     for every density, and keeps ic_launcher_background in colors.xml in sync
 
 Keep this file ASCII-only: Windows PowerShell 5.1 reads BOM-less files using
 the system code page and would fail to parse non-ASCII text.
 #>
 [CmdletBinding()]
 param(
-    [string]$Source = ""
+    [string]$Source = "",
+    [ValidateSet("light", "dark")][string]$Style = "dark"
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +33,9 @@ if ([string]::IsNullOrWhiteSpace($Source)) {
 $resDir = Join-Path $repoRoot "app\src\main\res"
 
 if (-not (Test-Path -LiteralPath $Source)) { throw "Source image not found: $Source" }
+
+$tileColor = if ($Style -eq "dark") { [System.Drawing.Color]::FromArgb(255, 17, 17, 20) } else { [System.Drawing.Color]::White }
+$tileHex = if ($Style -eq "dark") { "#FF111114" } else { "#FFFFFFFF" }
 
 $src = [System.Drawing.Bitmap]::FromFile($Source)
 
@@ -55,10 +59,10 @@ $minX = [Math]::Max(0, $minX - $pad); $minY = [Math]::Max(0, $minY - $pad)
 $maxX = [Math]::Min($src.Width - 1, $maxX + $pad); $maxY = [Math]::Min($src.Height - 1, $maxY + $pad)
 $cropRect = New-Object System.Drawing.Rectangle($minX, $minY, ($maxX - $minX + 1), ($maxY - $minY + 1))
 $cropped = $src.Clone($cropRect, $src.PixelFormat)
-Write-Host ("logo area: {0}x{1}" -f $cropped.Width, $cropped.Height)
+Write-Host ("logo area: {0}x{1}, style: {2}" -f $cropped.Width, $cropped.Height, $Style)
 
-# 2) master copy with the white background removed, sized for the densest icon
-$masterWidth = 380
+# 2) master: white removed, lettering flipped to white for the dark style
+$masterWidth = 420
 $masterHeight = [int]($cropped.Height * $masterWidth / $cropped.Width)
 $master = New-Object System.Drawing.Bitmap($masterWidth, $masterHeight, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
 $g = [System.Drawing.Graphics]::FromImage($master)
@@ -70,12 +74,16 @@ for ($y = 0; $y -lt $masterHeight; $y++) {
     for ($x = 0; $x -lt $masterWidth; $x++) {
         $c = $master.GetPixel($x, $y)
         if ($c.R -ge 240 -and $c.G -ge 240 -and $c.B -ge 240) {
-            $master.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 255, 255, 255))
+            $master.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+        }
+        elseif ($Style -eq "dark" -and $c.R -lt 90 -and $c.G -lt 90 -and $c.B -lt 90) {
+            # near-black lettering -> white, keep the red accent as is
+            $master.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(255, 255, 255, 255))
         }
     }
 }
 
-# 3) adaptive icon foreground layers: logo at 64% of the 108dp canvas
+# 3) adaptive icon foreground layers (108dp canvas, logo at 64% so no mask clips it)
 $densities = [ordered]@{ "mdpi" = 108; "hdpi" = 162; "xhdpi" = 216; "xxhdpi" = 324; "xxxhdpi" = 432 }
 foreach ($entry in $densities.GetEnumerator()) {
     $size = [int]$entry.Value
@@ -83,47 +91,43 @@ foreach ($entry in $densities.GetEnumerator()) {
     $g = [System.Drawing.Graphics]::FromImage($canvas)
     $g.Clear([System.Drawing.Color]::Transparent)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $targetWidth = [int]($size * 0.64)
-    $targetHeight = [int]($masterHeight * $targetWidth / $masterWidth)
-    $x = [int](($size - $targetWidth) / 2)
-    $y = [int](($size - $targetHeight) / 2)
-    $g.DrawImage($master, $x, $y, $targetWidth, $targetHeight)
+    $w = [int]($size * 0.64)
+    $h = [int]($masterHeight * $w / $masterWidth)
+    $g.DrawImage($master, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
     $g.Dispose()
 
     $outDir = Join-Path $resDir ("mipmap-" + $entry.Key)
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-    $outPath = Join-Path $outDir "ic_launcher_foreground.png"
-    $canvas.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $canvas.Save((Join-Path $outDir "ic_launcher_foreground.png"), [System.Drawing.Imaging.ImageFormat]::Png)
     $canvas.Dispose()
-    Write-Host ("wrote {0} ({1}x{1})" -f $outPath.Replace($repoRoot, ""), $size)
+    Write-Host ("adaptive foreground: mipmap-{0}/ic_launcher_foreground.png ({1}x{1})" -f $entry.Key, $size)
 }
 
-# 4) plain PNG icons as a fallback: many third-party launchers ignore adaptive
-#    icons and would otherwise show the system default icon.
+# 4) plain square/round fallback icons (launchers that ignore adaptive icons)
 $legacy = [ordered]@{ "mdpi" = 48; "hdpi" = 72; "xhdpi" = 96; "xxhdpi" = 144; "xxxhdpi" = 192 }
 foreach ($entry in $legacy.GetEnumerator()) {
     $size = [int]$entry.Value
     $outDir = Join-Path $resDir ("mipmap-" + $entry.Key)
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-    # square: white background, logo at 72% of the icon width
     $square = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($square)
-    $g.Clear([System.Drawing.Color]::White)
+    $g.Clear($tileColor)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $w = [int]($size * 0.72)
+    $w = [int]($size * 0.74)
     $h = [int]($masterHeight * $w / $masterWidth)
     $g.DrawImage($master, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
     $g.Dispose()
     $square.Save((Join-Path $outDir "ic_launcher.png"), [System.Drawing.Imaging.ImageFormat]::Png)
     $square.Dispose()
 
-    # round: white circle, logo kept inside the circle
     $round = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($round)
     $g.Clear([System.Drawing.Color]::Transparent)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-    $g.FillEllipse([System.Drawing.Brushes]::White, 0, 0, $size - 1, $size - 1)
+    $brush = New-Object System.Drawing.SolidBrush($tileColor)
+    $g.FillEllipse($brush, 0, 0, $size - 1, $size - 1)
+    $brush.Dispose()
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $w = [int]($size * 0.62)
     $h = [int]($masterHeight * $w / $masterWidth)
@@ -132,8 +136,15 @@ foreach ($entry in $legacy.GetEnumerator()) {
     $round.Save((Join-Path $outDir "ic_launcher_round.png"), [System.Drawing.Imaging.ImageFormat]::Png)
     $round.Dispose()
 
-    Write-Host ("wrote mipmap-{0}\ic_launcher.png + ic_launcher_round.png ({1}x{1})" -f $entry.Key, $size)
+    Write-Host ("fallback icons: mipmap-{0}/ic_launcher.png + ic_launcher_round.png ({1}x{1})" -f $entry.Key, $size)
 }
+
+# 5) keep the adaptive background color in sync with the chosen style
+$colorsPath = Join-Path $resDir "values\colors.xml"
+$colors = Get-Content -LiteralPath $colorsPath -Raw
+$colors = $colors -replace '<color name="ic_launcher_background">[^<]*</color>', ('<color name="ic_launcher_background">' + $tileHex + '</color>')
+[System.IO.File]::WriteAllText($colorsPath, $colors, (New-Object System.Text.UTF8Encoding($false)))
+Write-Host ("adaptive background set to {0} in values/colors.xml" -f $tileHex)
 
 $master.Dispose(); $cropped.Dispose(); $src.Dispose()
 Write-Host "done."
