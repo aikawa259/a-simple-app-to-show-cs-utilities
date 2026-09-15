@@ -97,6 +97,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1
 远端使用 HTTPS，凭据保存在 Windows 凭据管理器里（首次推送时在浏览器里授权过），
 之后推送不需要再输入密码：
 
+> **注意（2026-09-15）**：因为调试过程中令牌意外出现在对话里，该令牌已被吊销、
+> 本机保存的凭据也已清除。现在执行 `git push` 会弹出一次浏览器授权窗口，
+> 点一下即可恢复；仓库和已发布的 Release 不受影响。
+
 ```powershell
 git add -A
 git commit -m "..."
