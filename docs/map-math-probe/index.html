@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Mirage 地图探针</title>
+<style>
+  :root{
+    --bg:#0e0f12; --card:#1b1d22; --line:#2c2f36;
+    --txt:#f2f3f5; --dim:#9aa0a8; --accent:#0a84ff;
+    --smoke:#8e8e93; --flash:#ffd400; --molotov:#ff7a1a; --he:#34c759;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%; margin:0}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:14px/1.45 -apple-system,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  header{display:flex; align-items:center; gap:10px; padding:8px 12px 4px}
+  header .title{font-weight:700; font-size:16px}
+  header .tag{font-weight:400; font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:6px; padding:1px 6px}
+  header .grow{flex:1}
+  header button, header label.dev{
+    background:var(--card); color:var(--txt); border:1px solid var(--line);
+    border-radius:9px; padding:5px 9px; font-size:12px; font-family:inherit;
+  }
+  header label.dev{display:flex; align-items:center; gap:5px}
+  header input[type=checkbox]{margin:0}
+  .chips{display:flex; gap:6px; overflow-x:auto; padding:4px 12px; scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto; background:var(--card); color:var(--txt); border:1px solid var(--line);
+    border-radius:999px; padding:4px 11px; font-size:12px; font-family:inherit;
+  }
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  #viewport{position:relative; flex:1; overflow:hidden; touch-action:none; margin-top:4px}
+  #scene{position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform}
+  #mapBox{position:absolute; border-radius:12px; overflow:hidden; background:#000}
+  #mapBox img{width:100%; height:100%; object-fit:fill; display:block; user-select:none; -webkit-user-drag:none}
+  .mk{
+    position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:16px; color:#fff;
+    border:2px solid rgba(255,255,255,.92); box-shadow:0 2px 6px rgba(0,0,0,.45);
+    cursor:pointer;
+  }
+  .mk.flash{color:#111}
+  .mk.cluster{width:36px; height:36px; margin:-18px 0 0 -18px; background:var(--accent); border-radius:50%}
+  .mk.dev{width:28px; height:28px; margin:-14px 0 0 -14px; font-size:12px; border-style:dashed}
+  .mk .lbl{
+    position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:3px;
+    white-space:nowrap; font-size:10px; font-weight:600; color:var(--txt);
+    background:rgba(20,22,26,.86); border-radius:6px; padding:2px 5px; font-family:ui-monospace,Menlo,monospace;
+  }
+  #hint{padding:6px 12px; font-size:11px; color:var(--dim); text-align:center}
+  #devPanel{
+    margin:0 12px 8px; padding:10px 12px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; font-size:12px;
+  }
+  #devPanel .row{display:flex; justify-content:space-between; gap:8px; padding:1px 0}
+  #devPanel .row span:first-child{color:var(--dim)}
+  #devPanel code{font-family:ui-monospace,Menlo,monospace; font-size:11px}
+  #devPanel .btns{display:flex; gap:8px; margin-top:8px}
+  #devPanel button{
+    flex:1; background:#26292f; color:var(--txt); border:1px solid var(--line);
+    border-radius:9px; padding:7px; font-size:12px; font-family:inherit;
+  }
+  #sheet{
+    position:absolute; left:0; right:0; bottom:0; max-height:62%;
+    background:var(--card); border-top:1px solid var(--line); border-radius:16px 16px 0 0;
+    padding:12px 14px 16px; overflow-y:auto; box-shadow:0 -8px 30px rgba(0,0,0,.5);
+  }
+  #sheet h2{margin:2px 0 8px; font-size:17px}
+  #sheet .badges{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px}
+  #sheet .badge{font-size:11px; font-weight:600; border-radius:999px; padding:3px 9px; background:#2a2d34; color:var(--txt)}
+  #sheet .variant{border-top:1px solid var(--line); padding:9px 0}
+  #sheet .variant h3{margin:0 0 4px; font-size:14px}
+  #sheet .variant p{margin:2px 0; color:var(--dim); font-size:12px}
+  #sheet .close{position:absolute; right:10px; top:10px; background:#2a2d34; border:0; color:var(--txt); border-radius:50%; width:28px; height:28px; font-size:15px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">Mirage</div>
+  <div class="tag">地图页探针</div>
+  <div class="grow"></div>
+  <button id="langBtn">EN</button>
+  <label class="dev"><input type="checkbox" id="devToggle">开发者</label>
+</header>
+
+<div class="chips" id="areaChips"></div>
+<div class="chips" id="typeChips"></div>
+
+<div id="viewport">
+  <div id="scene">
+    <div id="mapBox">
+      <img id="mapImg" src="mirage_map.jpg" alt="Mirage">
+    </div>
+  </div>
+  <div id="sheet" hidden></div>
+</div>
+
+<div id="hint"></div>
+
+<div id="devPanel" hidden>
+  <div class="row"><span>图片尺寸</span><code id="mImg">-</code></div>
+  <div class="row"><span>可视区</span><code id="mView">-</code></div>
+  <div class="row"><span>等比适配矩形</span><code id="mFit">-</code></div>
+  <div class="row"><span>缩放</span><code id="mScale">-</code></div>
+  <div class="row"><span id="mPointName">未拖动点位</span></div>
+  <div class="row"><code id="mPoint">-</code></div>
+  <div class="btns">
+    <button id="cpOne">复制坐标</button>
+    <button id="cpJson">复制 JSON</button>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   数据：与 iOS 版 lineups_mirage.json 完全同构，可原样复用
+   ------------------------------------------------------------------ */
+const MAP = { id:"mirage", imageName:"mirage_map", imageWidth:1206, imageHeight:1214 };
+
+const GROUPS = [
+  { id:"mirage_window_smoke", type:"Smoke", side:"T", category:"mid", targetMapX:0.46, targetMapY:0.36, isFeatured:true,
+    targetName:{en:"Window Smoke", zhHans:"VIP 烟"},
+    variants:[
+      { id:"mirage_window_smoke_standard_t_spawn", difficulty:"Medium", startMapX:0.46, startMapY:0.31, targetMapX:0.46, targetMapY:0.36,
+        name:{en:"Standard T Spawn", zhHans:"匪家稳定丢法"},
+        startArea:{en:"T Spawn", zhHans:"匪家"}, targetArea:{en:"Window", zhHans:"VIP"},
+        spawnRequirement:{en:"Any T spawn, stable lineup.", zhHans:"任意 T 出生点，稳定站位。"},
+        throwMethod:{en:"Position: T Spawn. Aim: roof reference. Throw: jump throw.", zhHans:"站位：匪家。瞄点：屋顶参考点。投掷：跳投。"} },
+      { id:"mirage_window_smoke_left_spawn", difficulty:"Medium", startMapX:0.43, startMapY:0.30, targetMapX:0.46, targetMapY:0.36,
+        name:{en:"Left Spawn Fast Throw", zhHans:"靠左出生快丢"},
+        startArea:{en:"T Spawn", zhHans:"匪家"}, targetArea:{en:"Window", zhHans:"VIP"},
+        spawnRequirement:{en:"Best for left T spawns or fast mid control.", zhHans:"适合靠左 T 出生点或快速拿中路。"},
+        throwMethod:{en:"Position: left T spawn. Aim: roof edge. Throw: jump throw.", zhHans:"站位：匪家左侧。瞄点：屋檐边。投掷：跳投。"} }
+    ] },
+  { id:"mirage_ct_smoke", type:"Smoke", side:"T", category:"aSite", targetMapX:0.69, targetMapY:0.50, isFeatured:true,
+    targetName:{en:"CT Smoke", zhHans:"警家烟"},
+    variants:[
+      { id:"mirage_ct_smoke_t_spawn", difficulty:"Easy", startMapX:0.63, startMapY:0.37, targetMapX:0.69, targetMapY:0.50,
+        name:{en:"T Spawn Lineup", zhHans:"匪家丢法"},
+        startArea:{en:"T Spawn", zhHans:"匪家"}, targetArea:{en:"CT", zhHans:"警家"},
+        spawnRequirement:{en:"Any T spawn, useful for A execute.", zhHans:"任意 T 出生点，适合 A 区进攻。"},
+        throwMethod:{en:"Position: T Spawn. Aim: wall reference. Throw: jump throw.", zhHans:"站位：匪家。瞄点：墙体参考点。投掷：跳投。"} },
+      { id:"mirage_ct_smoke_a_ramp", difficulty:"Medium", startMapX:0.55, startMapY:0.44, targetMapX:0.69, targetMapY:0.50,
+        name:{en:"A Ramp Lineup", zhHans:"A Ramp 丢法"},
+        startArea:{en:"A Ramp", zhHans:"A Ramp"}, targetArea:{en:"CT", zhHans:"警家"},
+        spawnRequirement:{en:"Best when grouping at A Ramp.", zhHans:"适合队伍在 A Ramp 集合时使用。"},
+        throwMethod:{en:"Position: A Ramp. Aim: wall reference. Throw: jump throw.", zhHans:"站位：A Ramp。瞄点：墙体参考点。投掷：跳投。"} }
+    ] },
+  { id:"mirage_jungle_smoke", type:"Smoke", side:"T", category:"aSite", targetMapX:0.42, targetMapY:0.62, isFeatured:true,
+    targetName:{en:"Jungle Smoke", zhHans:"Jungle 烟"},
+    variants:[
+      { id:"mirage_jungle_smoke_a_ramp", difficulty:"Medium", startMapX:0.58, startMapY:0.35, targetMapX:0.42, targetMapY:0.62,
+        name:{en:"A Ramp Lineup", zhHans:"A Ramp 丢法"},
+        startArea:{en:"A Ramp", zhHans:"A Ramp"}, targetArea:{en:"Jungle", zhHans:"Jungle"},
+        spawnRequirement:{en:"Useful for standard A executes.", zhHans:"适合常规 A 区进攻。"},
+        throwMethod:{en:"Position: A Ramp. Aim: top wall reference. Throw: jump throw.", zhHans:"站位：A Ramp。瞄点：上方墙体参考。投掷：跳投。"} },
+      { id:"mirage_jungle_smoke_palace", difficulty:"Medium", startMapX:0.64, startMapY:0.67, targetMapX:0.42, targetMapY:0.62,
+        name:{en:"Palace Lineup", zhHans:"二楼丢法"},
+        startArea:{en:"Palace", zhHans:"A 二楼"}, targetArea:{en:"Jungle", zhHans:"Jungle"},
+        spawnRequirement:{en:"Use when setting up from Palace.", zhHans:"适合从 A 二楼组织进攻时使用。"},
+        throwMethod:{en:"Position: Palace. Aim: top wall reference. Throw: jump throw.", zhHans:"站位：A 二楼。瞄点：上方墙体参考。投掷：跳投。"} }
+    ] }
+];
+
+/* ------------------------------------------------------------------
+   文案
+   ------------------------------------------------------------------ */
+const STR = {
+  zhHans:{
+    hint:"单指拖动平移 · 双指捏合缩放 · 双击放大 · 点圆点看详情",
+    devHint:"开发者模式：拖动点位改坐标，单指拖点、双指平移",
+    areas:{featured:"推荐",aSite:"A 包点",bSite:"B 包点",mid:"中路",tSide:"T 方",ctSide:"CT 方"},
+    types:{all:"全部",Smoke:"烟",Flash:"闪",Molotov:"火",HE:"雷"},
+    typeNames:{Smoke:"烟",Flash:"闪",Molotov:"火",HE:"雷"},
+    diff:{Easy:"简单",Medium:"中等"},
+    side:"阵营", category:"分类", variants:"丢法", startArea:"起始位置", targetArea:"目标位置",
+    spawn:"适用出生点", noPoint:"未拖动点位", copied:"已复制"
+  },
+  en:{
+    hint:"Drag to pan · Pinch to zoom · Double-tap to zoom in · Tap a dot",
+    devHint:"Developer mode: drag points to fix coordinates (1 finger drags a point, 2 fingers pan)",
+    areas:{featured:"Featured",aSite:"A Site",bSite:"B Site",mid:"Mid",tSide:"T Side",ctSide:"CT Side"},
+    types:{all:"All",Smoke:"Smoke",Flash:"Flash",Molotov:"Molotov",HE:"HE"},
+    typeNames:{Smoke:"Smoke",Flash:"Flash",Molotov:"Molotov",HE:"HE"},
+    diff:{Easy:"Easy",Medium:"Medium"},
+    side:"Side", category:"Category", variants:"Variants", startArea:"Start Area", targetArea:"Target Area",
+    spawn:"Spawn", noPoint:"No edited point yet", copied:"Copied"
+  }
+};
+const UTIL_COLOR = { Smoke:"var(--smoke)", Flash:"var(--flash)", Molotov:"var(--molotov)", HE:"var(--he)" };
+const UTIL_SYMBOL = { Smoke:"S", Flash:"F", Molotov:"M", HE:"H" };
+
+let lang = "zhHans";
+let areaFilter = "featured";
+let typeFilter = "all";
+let devMode = false;
+let selection = null;
+const edits = {};   // key -> {nx, ny}  覆盖后的坐标
+
+/* ------------------------------------------------------------------
+   视图状态（坐标换算与 iOS 版一致：先把图片按宽高比适配居中，再映射归一化坐标）
+   ------------------------------------------------------------------ */
+const vp      = document.getElementById('viewport');
+const scene   = document.getElementById('scene');
+const mapBox  = document.getElementById('mapBox');
+const sheet   = document.getElementById('sheet');
+const hintEl  = document.getElementById('hint');
+const devPanel= document.getElementById('devPanel');
+
+let fit   = { x:0, y:0, w:1, h:1 };
+let view  = { w:1, h:1 };
+let scale = 1, tx = 0, ty = 0;
+let lastPoint = null;
+
+function layout(){
+  const r = vp.getBoundingClientRect();
+  view = { w:Math.max(r.width,1), h:Math.max(r.height,1) };
+
+  const ia = MAP.imageWidth / MAP.imageHeight;
+  const ca = view.w / view.h;
+  let fw, fh;
+  if (ia > ca) { fw = view.w; fh = view.w / ia; }   // 图更宽：以宽为准
+  else         { fh = view.h; fw = view.h * ia; }   // 图更高：以高为准
+  fit = { x:(view.w - fw)/2, y:(view.h - fh)/2, w:fw, h:fh };
+
+  mapBox.style.left   = fit.x + 'px';
+  mapBox.style.top    = fit.y + 'px';
+  mapBox.style.width  = fit.w + 'px';
+  mapBox.style.height = fit.h + 'px';
+
+  scale = 1; tx = 0; ty = 0;
+  clampView();
+  renderMarkers();
+  updateMath();
+}
+
+function applyTransform(){
+  scene.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  updateMath();
+}
+
+function clampView(){
+  const w = fit.w * scale, h = fit.h * scale;
+  const minX = view.w - (fit.x + fit.w) * scale, maxX = -fit.x * scale;
+  const minY = view.h - (fit.y + fit.h) * scale, maxY = -fit.y * scale;
+  tx = (minX > maxX) ? (view.w - w)/2 - fit.x*scale : Math.min(maxX, Math.max(minX, tx));
+  ty = (minY > maxY) ? (view.h - h)/2 - fit.y*scale : Math.min(maxY, Math.max(minY, ty));
+  applyTransform();
+}
+
+function zoomAt(newScale, px, py){
+  newScale = Math.min(4, Math.max(1, newScale));
+  const s = newScale / scale;
+  tx = px - (px - tx) * s;
+  ty = py - (py - ty) * s;
+  scale = newScale;
+  clampView();
+  renderMarkers();
+}
+
+/* 归一化坐标 -> 场景像素（与 iOS pointLocation 等价） */
+function pointLocation(nx, ny){
+  return { x: fit.x + fit.w * nx, y: fit.y + fit.h * ny };
+}
+/* 场景像素 -> 归一化坐标（与 iOS normalizedCoordinate 等价） */
+function normalized(sx, sy){
+  return {
+    nx: Math.min(1, Math.max(0, (sx - fit.x) / fit.w)),
+    ny: Math.min(1, Math.max(0, (sy - fit.y) / fit.h))
+  };
+}
+
+/* ------------------------------------------------------------------
+   数据访问
+   ------------------------------------------------------------------ */
+function coordOf(group, variant, kind){
+  const key = kind === 'group' ? group.id : variant.id;
+  if (edits[key]) return edits[key];
+  if (kind === 'group') return { nx:group.targetMapX, ny:group.targetMapY };
+  return { nx:variant.startMapX, ny:variant.startMapY };
+}
+
+function visibleGroups(){
+  return GROUPS.filter(g =>
+    (areaFilter === 'featured' ? g.isFeatured : g.category === areaFilter) &&
+    (typeFilter === 'all' || g.type === typeFilter)
+  );
+}
+
+/* 点聚合：阈值与 iOS 一致（按缩放级别取不同像素阈值） */
+function clusterDistance(s){
+  if (s < 1.5) return 92;
+  if (s < 2.0) return 76;
+  if (s < 3.0) return 52;
+  return 36;
+}
+
+function buildClusters(groups){
+  const limit = clusterDistance(scale);
+  const clusters = [];
+  groups.forEach(group => {
+    const c = coordOf(group, null, 'group');
+    const p = pointLocation(c.nx, c.ny);
+    const hit = clusters.find(cl => {
+      const dx = cl.p.x - p.x, dy = cl.p.y - p.y;
+      return Math.sqrt(dx*dx + dy*dy) * Math.max(scale,1) <= limit;
+    });
+    if (hit) {
+      const n = hit.groups.length;
+      hit.p = { x:(hit.p.x*n + p.x)/(n+1), y:(hit.p.y*n + p.y)/(n+1) };
+      hit.groups.push(group);
+    } else {
+      clusters.push({ groups:[group], p });
+    }
+  });
+  return clusters;
+}
+
+/* ------------------------------------------------------------------
+   渲染
+   ------------------------------------------------------------------ */
+function markerEl(cls, symbol, color, nx, ny, listeners){
+  const el = document.createElement('div');
+  el.className = 'mk' + (cls ? ' ' + cls : '');
+  el.style.left = (nx * 100) + '%';
+  el.style.top  = (ny * 100) + '%';
+  if (color) el.style.background = color;
+  if (cls !== 'cluster') el.textContent = symbol;
+  if (listeners) listeners(el);
+  return el;
+}
+
+function renderMarkers(){
+  mapBox.querySelectorAll('.mk').forEach(n => n.remove());
+
+  if (devMode){
+    GROUPS.forEach(group => {
+      const t = coordOf(group, null, 'group');
+      mapBox.appendChild(markerEl('dev' + (group.type === 'Flash' ? ' flash' : ''), UTIL_SYMBOL[group.type],
+        UTIL_COLOR[group.type], t.nx, t.ny, el => {
+          addLabel(el, t.nx, t.ny);
+          attachPointDrag(el, group, null, 'group');
+        }));
+      group.variants.forEach(variant => {
+        const c = coordOf(group, variant, 'start');
+        mapBox.appendChild(markerEl('dev' + (group.type === 'Flash' ? ' flash' : ''), '·',
+          UTIL_COLOR[group.type], c.nx, c.ny, el => {
+            addLabel(el, c.nx, c.ny);
+            attachPointDrag(el, group, variant, 'start');
+          }));
+      });
+      // 站位 -> 目标 连线
+      group.variants.forEach(variant => {
+        const t2 = coordOf(group, null, 'group');
+        const c2 = coordOf(group, variant, 'start');
+        const a = pointLocation(c2.nx, c2.ny), b = pointLocation(t2.nx, t2.ny);
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+        const line = document.createElement('div');
+        line.className = 'mk';
+        line.style.cssText = `left:${a.x}px; top:${a.y}px; width:${len}px; height:2px; margin:0; border:0; border-radius:0;
+          background:${UTIL_COLOR[group.type]}; opacity:.75; transform-origin:0 50%; transform:rotate(${ang}deg); box-shadow:none; cursor:default`;
+        mapBox.appendChild(line);
+      });
+    });
+    return;
+  }
+
+  buildClusters(visibleGroups()).forEach(cluster => {
+    if (cluster.groups.length > 1){
+      const c = normalized(cluster.p.x, cluster.p.y);
+      const el = markerEl('cluster', '', '', c.nx, c.ny, btn => {
+        btn.textContent = cluster.groups.length;
+        btn.title = cluster.groups.map(g => g.targetName[lang]).join(' / ');
+        btn.addEventListener('click', ev => { ev.stopPropagation(); openClusterSheet(cluster.groups); });
+      });
+      mapBox.appendChild(el);
+    } else {
+      const group = cluster.groups[0];
+      const c = coordOf(group, null, 'group');
+      const el = markerEl(group.type === 'Flash' ? 'flash' : '', UTIL_SYMBOL[group.type],
+        UTIL_COLOR[group.type], c.nx, c.ny, btn => {
+          btn.addEventListener('click', ev => { ev.stopPropagation(); openGroupSheet(group); });
+        });
+      mapBox.appendChild(el);
+    }
+  });
+}
+
+function addLabel(el, nx, ny){
+  const lbl = document.createElement('div');
+  lbl.className = 'lbl';
+  lbl.textContent = nx.toFixed(3) + ', ' + ny.toFixed(3);
+  el.appendChild(lbl);
+}
+
+/* ------------------------------------------------------------------
+   详情面板
+   ------------------------------------------------------------------ */
+function openGroupSheet(group){
+  selection = group;
+  const s = STR[lang];
+  sheet.hidden = false;
+  sheet.innerHTML = '';
+
+  const close = document.createElement('button');
+  close.className = 'close'; close.textContent = '×';
+  close.addEventListener('click', () => { sheet.hidden = true; });
+  sheet.appendChild(close);
+
+  const h = document.createElement('h2');
+  h.textContent = group.targetName[lang];
+  sheet.appendChild(h);
+
+  const badges = document.createElement('div');
+  badges.className = 'badges';
+  [s.typeNames[group.type], group.side, s.areas[group.category], group.variants.length + ' ' + s.variants]
+    .forEach(t => {
+      const b = document.createElement('span');
+      b.className = 'badge'; b.textContent = t; badges.appendChild(b);
+    });
+  sheet.appendChild(badges);
+
+  group.variants.forEach(variant => {
+    const box = document.createElement('div');
+    box.className = 'variant';
+    const h3 = document.createElement('h3');
+    h3.textContent = variant.name[lang];
+    const p1 = document.createElement('p');
+    p1.textContent = `${s.diff[variant.difficulty] || variant.difficulty} · ${s.startArea}: ${variant.startArea[lang]} → ${s.targetArea}: ${variant.targetArea[lang]}`;
+    const p2 = document.createElement('p');
+    p2.textContent = `${s.spawn}: ${variant.spawnRequirement[lang]}`;
+    const p3 = document.createElement('p');
+    p3.textContent = variant.throwMethod[lang];
+    box.append(h3, p1, p2, p3);
+    sheet.appendChild(box);
+  });
+}
+
+function openClusterSheet(groups){
+  const s = STR[lang];
+  sheet.hidden = false;
+  sheet.innerHTML = '';
+  const h = document.createElement('h2');
+  h.textContent = groups.length + ' ' + s.variants;
+  sheet.appendChild(h);
+  groups.forEach(group => {
+    const box = document.createElement('div');
+    box.className = 'variant';
+    const h3 = document.createElement('h3');
+    h3.textContent = group.targetName[lang];
+    const p = document.createElement('p');
+    p.textContent = `${s.typeNames[group.type]} · ${group.variants.length} ${s.variants}`;
+    box.append(h3, p);
+    box.style.cursor = 'pointer';
+    box.addEventListener('click', () => openGroupSheet(group));
+    sheet.appendChild(box);
+  });
+}
+
+/* ------------------------------------------------------------------
+   手势：平移 / 捏合 / 双击 / （开发者模式）拖动点位
+   ------------------------------------------------------------------ */
+const pointers = new Map();
+let panStart = null, pinchStart = null, tapInfo = null, dragging = null;
+
+function localPoint(clientX, clientY){
+  const r = vp.getBoundingClientRect();
+  return { x:clientX - r.left, y:clientY - r.top };
+}
+
+vp.addEventListener('pointerdown', ev => {
+  vp.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, localPoint(ev.clientX, ev.clientY));
+  tapInfo = { t:Date.now(), x:ev.clientX, y:ev.clientY };
+
+  if (pointers.size === 1 && !dragging){
+    panStart = { ...localPoint(ev.clientX, ev.clientY), tx, ty };
+  }
+  if (pointers.size === 2){
+    const pts = [...pointers.values()];
+    pinchStart = {
+      dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+      mid:  { x:(pts[0].x + pts[1].x)/2, y:(pts[0].y + pts[1].y)/2 },
+      scale, tx, ty
+    };
+    panStart = null;
+  }
+});
+
+vp.addEventListener('pointermove', ev => {
+  if (!pointers.has(ev.pointerId)) return;
+  const p = localPoint(ev.clientX, ev.clientY);
+  pointers.set(ev.pointerId, p);
+
+  if (pointers.size >= 2 && pinchStart){
+    const pts = [...pointers.values()];
+    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const mid  = { x:(pts[0].x + pts[1].x)/2, y:(pts[0].y + pts[1].y)/2 };
+    const target = Math.min(4, Math.max(1, pinchStart.scale * (dist / Math.max(pinchStart.dist,1))));
+    scale = pinchStart.scale;
+    tx = pinchStart.tx; ty = pinchStart.ty;
+    tx += mid.x - pinchStart.mid.x;
+    ty += mid.y - pinchStart.mid.y;
+    zoomAt(target, mid.x, mid.y);
+    return;
+  }
+
+  // 开发者模式下，单指用于拖点位，不允许单指平移（与 iOS 的 minimumNumberOfTouches = 2 一致）
+  const panNeedsTwo = devMode;
+  if (panStart && (panNeedsTwo ? pointers.size >= 2 : pointers.size === 1)){
+    tx = panStart.tx + (p.x - panStart.x);
+    ty = panStart.ty + (p.y - panStart.y);
+    clampView();
+  }
+});
+
+function endPointer(ev){
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2) pinchStart = null;
+  if (pointers.size === 0) panStart = null;
+
+  if (tapInfo && !dragging && ev.type === 'pointerup'){
+    const moved = Math.hypot(ev.clientX - tapInfo.x, ev.clientY - tapInfo.y);
+    const elapsed = Date.now() - tapInfo.t;
+    if (moved < 8 && elapsed < 320){
+      if (ev.detail === 1) handleTapBackdrop();
+    }
+  }
+  tapInfo = null;
+}
+vp.addEventListener('pointerup', endPointer);
+vp.addEventListener('pointercancel', endPointer);
+
+let lastTapTs = 0, lastTapPos = null;
+function handleTapBackdrop(){
+  const now = Date.now();
+  if (now - lastTapTs < 300 && lastTapPos){
+    const r = vp.getBoundingClientRect();
+    const p = lastTapPos;
+    zoomAt(scale > 1.05 ? 1 : 2.5, p.x - r.left, p.y - r.top);
+    lastTapTs = 0; lastTapPos = null;
+    return;
+  }
+  lastTapTs = now;
+}
+vp.addEventListener('pointerdown', ev => { lastTapPos = { x:ev.clientX, y:ev.clientY }; }, true);
+
+vp.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const p = localPoint(ev.clientX, ev.clientY);
+  zoomAt(scale * (ev.deltaY < 0 ? 1.12 : 0.89), p.x, p.y);
+}, { passive:false });
+
+/* ---------------- 开发者模式拖点 ---------------- */
+function attachPointDrag(el, group, variant, kind){
+  el.addEventListener('pointerdown', ev => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    el.setPointerCapture(ev.pointerId);
+    dragging = { el, group, variant, kind, pointerId:ev.pointerId };
+    el.style.cursor = 'grabbing';
+  });
+
+  el.addEventListener('pointermove', ev => {
+    if (!dragging || dragging.pointerId !== ev.pointerId) return;
+    ev.stopPropagation();
+    const local = localPoint(ev.clientX, ev.clientY);
+    const sceneX = (local.x - tx) / scale;
+    const sceneY = (local.y - ty) / scale;
+    const { nx, ny } = normalized(sceneX, sceneY);
+    const key = kind === 'group' ? group.id : variant.id;
+    edits[key] = { nx, ny };
+    lastPoint = { group, variant, kind, nx, ny };
+    renderMarkers();
+    updateMath();
+  });
+
+  el.addEventListener('pointerup', ev => {
+    if (!dragging || dragging.pointerId !== ev.pointerId) return;
+    ev.stopPropagation();
+    dragging = null;
+    el.style.cursor = 'grab';
+  });
+}
+
+/* ------------------------------------------------------------------
+   面板与筛选
+   ------------------------------------------------------------------ */
+function updateMath(){
+  document.getElementById('mImg').textContent   = MAP.imageWidth + ' × ' + MAP.imageHeight;
+  document.getElementById('mView').textContent  = Math.round(view.w) + ' × ' + Math.round(view.h);
+  document.getElementById('mFit').textContent   = `x${Math.round(fit.x)} y${Math.round(fit.y)} ${Math.round(fit.w)}×${Math.round(fit.h)}`;
+  document.getElementById('mScale').textContent = scale.toFixed(2) + 'x';
+
+  if (lastPoint){
+    const { kind, variant, group } = lastPoint;
+    const name = kind === 'group' ? group.targetName[lang] : variant.name[lang];
+    const xs = kind === 'group' ? 'targetMapX' : 'startMapX';
+    const ys = kind === 'group' ? 'targetMapY' : 'startMapY';
+    document.getElementById('mPointName').textContent = name + (kind === 'group' ? ' 目标点' : ' 站位点');
+    document.getElementById('mPoint').textContent = `${xs}: ${lastPoint.nx.toFixed(3)}, ${ys}: ${lastPoint.ny.toFixed(3)}`;
+  } else {
+    document.getElementById('mPointName').textContent = STR[lang].noPoint;
+    document.getElementById('mPoint').textContent = '-';
+  }
+}
+
+function buildChips(){
+  const s = STR[lang];
+  const areas = ['featured','aSite','bSite','mid','tSide','ctSide'];
+  const types = ['all','Smoke','Flash','Molotov','HE'];
+
+  const areaBox = document.getElementById('areaChips');
+  areaBox.innerHTML = '';
+  areas.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (areaFilter === a ? ' on' : '');
+    b.textContent = s.areas[a];
+    b.addEventListener('click', () => { areaFilter = a; buildChips(); renderMarkers(); });
+    areaBox.appendChild(b);
+  });
+
+  const typeBox = document.getElementById('typeChips');
+  typeBox.innerHTML = '';
+  types.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (typeFilter === t ? ' on' : '');
+    b.textContent = s.types[t];
+    b.addEventListener('click', () => { typeFilter = t; buildChips(); renderMarkers(); });
+    typeBox.appendChild(b);
+  });
+}
+
+document.getElementById('langBtn').addEventListener('click', () => {
+  lang = lang === 'zhHans' ? 'en' : 'zhHans';
+  document.getElementById('langBtn').textContent = lang === 'zhHans' ? 'EN' : '中文';
+  hintEl.textContent = devMode ? STR[lang].devHint : STR[lang].hint;
+  if (selection && !sheet.hidden) openGroupSheet(selection);
+  buildChips(); renderMarkers(); updateMath();
+});
+
+document.getElementById('devToggle').addEventListener('change', ev => {
+  devMode = ev.target.checked;
+  devPanel.hidden = !devMode;
+  hintEl.textContent = devMode ? STR[lang].devHint : STR[lang].hint;
+  renderMarkers();
+});
+
+document.getElementById('cpOne').addEventListener('click', async () => {
+  if (!lastPoint) return;
+  const { kind, variant, group } = lastPoint;
+  const xs = kind === 'group' ? 'targetMapX' : 'startMapX';
+  const ys = kind === 'group' ? 'targetMapY' : 'startMapY';
+  const text = `${xs}: ${lastPoint.nx.toFixed(3)}, ${ys}: ${lastPoint.ny.toFixed(3)}`;
+  try { await navigator.clipboard.writeText(text); } catch(e){}
+  document.getElementById('mPointName').textContent = STR[lang].copied;
+});
+
+document.getElementById('cpJson').addEventListener('click', async () => {
+  const out = GROUPS.map(group => ({
+    id: group.id,
+    targetMapX: +coordOf(group, null, 'group').nx.toFixed(3),
+    targetMapY: +coordOf(group, null, 'group').ny.toFixed(3),
+    variants: group.variants.map(variant => ({
+      id: variant.id,
+      startMapX: +coordOf(group, variant, 'start').nx.toFixed(3),
+      startMapY: +coordOf(group, variant, 'start').ny.toFixed(3),
+      targetMapX: +coordOf(group, null, 'group').nx.toFixed(3),
+      targetMapY: +coordOf(group, null, 'group').ny.toFixed(3)
+    }))
+  }));
+  const text = JSON.stringify(out, null, 2);
+  try { await navigator.clipboard.writeText(text); } catch(e){}
+  document.getElementById('mPointName').textContent = STR[lang].copied;
+});
+
+document.getElementById('mapImg').addEventListener('load', layout);
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', () => setTimeout(layout, 150));
+
+hintEl.textContent = STR[lang].hint;
+buildChips();
+layout();
+</script>
+</body>
+</html>
