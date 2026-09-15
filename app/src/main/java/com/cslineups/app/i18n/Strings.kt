@@ -9,6 +9,10 @@ interface Strings {
     val appName: String
     val settings: String
     val language: String
+    val theme: String
+    val themeSystem: String
+    val themeLight: String
+    val themeDark: String
     val followSystem: String
     val simplifiedChinese: String
     val english: String
@@ -107,6 +111,10 @@ object ZhStrings : Strings {
     override val appName = "CS Utility"
     override val settings = "设置"
     override val language = "语言"
+    override val theme = "深色模式"
+    override val themeSystem = "跟随系统"
+    override val themeLight = "浅色"
+    override val themeDark = "深色"
     override val followSystem = "跟随系统"
     override val simplifiedChinese = "简体中文"
     override val english = "English"
@@ -205,6 +213,10 @@ object EnStrings : Strings {
     override val appName = "CS Utility"
     override val settings = "Settings"
     override val language = "Language"
+    override val theme = "Dark mode"
+    override val themeSystem = "System"
+    override val themeLight = "Light"
+    override val themeDark = "Dark"
     override val followSystem = "Follow system"
     override val simplifiedChinese = "简体中文"
     override val english = "English"

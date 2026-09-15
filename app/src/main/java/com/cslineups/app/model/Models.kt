@@ -12,6 +12,19 @@ enum class Lang {
     }
 }
 
+/** 外观模式：跟随系统 / 强制浅色 / 强制深色。 */
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK;
+
+    fun isDark(systemInDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemInDark
+        LIGHT -> false
+        DARK -> true
+    }
+}
+
 enum class UtilityType(val symbol: String) {
     SMOKE("S"),
     FLASH("F"),

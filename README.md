@@ -31,7 +31,7 @@ https://github.com/aikawa259/a-simple-app-to-show-cs-utilities/releases/latest/d
 名称、类型、阵营、分类、难度、起始位置、目标位置、投掷步骤、说明、站位图 / 瞄点图 / 效果图。
 图片从手机相册选，会复制进应用私有目录，不需要任何存储权限。
 
-**其他**：中英文界面切换（设置页）、收藏与语言持久化。
+**其他**：中英文界面切换、深色模式（跟随系统 / 浅色 / 深色）、收藏与设置持久化。
 
 ## 技术决策
 
@@ -106,6 +106,12 @@ powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl h
 
 ## 变更记录
 
+**未发布（累积中）**
+
+- 设置页新增「深色模式」三档选择：跟随系统 / 浅色 / 深色，选择会记住
+- 窗口底色跟着所选外观走，避免启动或切页时闪出另一种颜色
+- 测试增至 19 项（新增 `ThemeModeTest`、`SettingsScreenTest`）
+
 **0.4.0**
 
 - 补齐普通 PNG 图标（方形 + 圆形，五个分辨率）：部分第三方启动器不认自适应图标，
@@ -113,6 +119,16 @@ powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl h
 - 首页（开屏第一个页面）不再做旋转与甩字动效，避免盖住系统启动动画
 - 二级页面动效加强：页面旋转从 -5° 提到 -16° 并带过冲；
   标题加了"被甩飞后归位"的效果（横向冲进来 + 旋转，再弹回过冲落位）
+
+**0.6.0**
+
+- 图标改为纯 PNG：删掉自适应图标，只保留五个密度的普通位图
+
+**0.5.0**
+
+- 启动 Activity 也声明图标（部分启动器只读 ActivityInfo.icon）
+- 自适应图标补 monochrome 层，支持 Android 13+ 主题图标
+- 图标改深底白 logo 高对比样式；`make-icons.ps1` 增加 `-Style light|dark`
 
 **0.3.0**
 

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.cslineups.app.model.Lang
+import com.cslineups.app.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -14,6 +15,7 @@ private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 data class PrefsState(
     val language: Lang = Lang.SYSTEM,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val favoriteItems: Set<String> = emptySet(),
 )
 
@@ -21,6 +23,7 @@ data class PrefsState(
 class Prefs(private val context: Context) {
 
     private val languageKey = stringPreferencesKey("language")
+    private val themeModeKey = stringPreferencesKey("theme_mode")
     private val favoriteItemsKey = stringSetPreferencesKey("favorite_item_ids")
 
     val state: Flow<PrefsState> = context.settingsDataStore.data.map { stored ->
@@ -28,12 +31,19 @@ class Prefs(private val context: Context) {
             language = stored[languageKey]
                 ?.let { raw -> Lang.entries.firstOrNull { it.name == raw } }
                 ?: Lang.SYSTEM,
+            themeMode = stored[themeModeKey]
+                ?.let { raw -> ThemeMode.entries.firstOrNull { it.name == raw } }
+                ?: ThemeMode.SYSTEM,
             favoriteItems = stored[favoriteItemsKey] ?: emptySet(),
         )
     }
 
     suspend fun setLanguage(language: Lang) {
         context.settingsDataStore.edit { it[languageKey] = language.name }
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.settingsDataStore.edit { it[themeModeKey] = mode.name }
     }
 
     suspend fun toggleFavorite(itemId: String) {

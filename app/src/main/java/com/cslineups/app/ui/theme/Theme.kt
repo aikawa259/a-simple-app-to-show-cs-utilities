@@ -32,12 +32,15 @@ val Difficulty.color: Color
         Difficulty.HARD -> Color(0xFFFF3B30)
     }
 
+val LightBackground = Color(0xFFF4F5F7)
+val DarkBackground = Color(0xFF101114)
+
 private val DarkColors = darkColorScheme(
     primary = AccentBlue,
     onPrimary = Color.White,
-    background = Color(0xFF101114),
+    background = DarkBackground,
     onBackground = Color(0xFFF2F3F5),
-    surface = Color(0xFF101114),
+    surface = DarkBackground,
     onSurface = Color(0xFFF2F3F5),
     surfaceVariant = Color(0xFF1B1D22),
     onSurfaceVariant = Color(0xFF9AA0A8),
@@ -47,9 +50,9 @@ private val DarkColors = darkColorScheme(
 private val LightColors = lightColorScheme(
     primary = AccentBlue,
     onPrimary = Color.White,
-    background = Color(0xFFF4F5F7),
+    background = LightBackground,
     onBackground = Color(0xFF11131A),
-    surface = Color(0xFFF4F5F7),
+    surface = LightBackground,
     onSurface = Color(0xFF11131A),
     surfaceVariant = Color(0xFFFFFFFF),
     onSurfaceVariant = Color(0xFF5C6169),
@@ -57,9 +60,12 @@ private val LightColors = lightColorScheme(
 )
 
 @Composable
-fun CsLineupsTheme(content: @Composable () -> Unit) {
+fun CsLineupsTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
+        colorScheme = if (darkTheme) DarkColors else LightColors,
         content = content,
     )
 }

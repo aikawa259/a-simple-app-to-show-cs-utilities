@@ -180,6 +180,7 @@ fun AppNav(
                 strings = strings,
                 state = state,
                 onSetLanguage = { scope.launch { prefs.setLanguage(it) } },
+                onSetThemeMode = { scope.launch { prefs.setThemeMode(it) } },
                 onOpenAbout = { navController.navigate(Routes.ABOUT) },
                 onBack = { navController.popBackStack() },
             )
