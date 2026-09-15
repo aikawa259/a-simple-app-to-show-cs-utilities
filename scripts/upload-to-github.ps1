@@ -21,7 +21,7 @@ system code page and would fail to parse non-ASCII text.
 param(
     [string]$RepoUrl = "",
     [switch]$Create,
-    [string]$RepoName = "cs-lineups",
+    [string]$RepoName = "a-simple-app-to-show-cs-utilities",
     [ValidateSet("public", "private")][string]$Visibility = "public",
     [string]$Proxy = ""
 )
