@@ -121,15 +121,14 @@ foreach ($entry in $legacy.GetEnumerator()) {
     $square.Save((Join-Path $outDir "ic_launcher.png"), [System.Drawing.Imaging.ImageFormat]::Png)
     $square.Dispose()
 
+    # round: keep it fully opaque and full-bleed. Launchers apply their own
+    # mask (circle/squircle) to legacy icons anyway, and a transparent icon
+    # would make some launchers draw an extra background plate.
     $round = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($round)
-    $g.Clear([System.Drawing.Color]::Transparent)
-    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-    $brush = New-Object System.Drawing.SolidBrush($tileColor)
-    $g.FillEllipse($brush, 0, 0, $size - 1, $size - 1)
-    $brush.Dispose()
+    $g.Clear($tileColor)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $w = [int]($size * 0.62)
+    $w = [int]($size * 0.70)
     $h = [int]($masterHeight * $w / $masterWidth)
     $g.DrawImage($master, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
     $g.Dispose()
