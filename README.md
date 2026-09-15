@@ -53,8 +53,31 @@ fit(图片宽高比, 容器宽高比)  →  居中矩形  →  点位 = 矩形 l
 
 ## 待办与已知问题
 
-- [ ] 首次编译：本机还没有 Android SDK 与 Gradle，需要先装工具链
-- [ ] Gradle Wrapper 的 jar 需要在有工具链后生成（`gradle wrapper --gradle-version 8.9`）
+- [x] 可编译：`assembleDebug` 通过，产出 10.3 MB 的 debug APK
+- [x] 单元测试：`MapGeometryTest` 6 项通过（适配矩形、坐标映射、平移边界、聚合阈值）
+- [x] Gradle Wrapper 已生成（`gradle/wrapper/gradle-wrapper.jar`）
+- [ ] **App 尚未在真机或模拟器上运行验证**，界面与手势需要装到手机后确认
 - [ ] **内容坐标需要校正**：现有 3 组点位与雷达图自身的标注对不上（例如「VIP 烟」的点落在中路北侧而不是 VIP 附近，「警家烟」的点落在中远匪口而不是警家）。iOS 版内置开发者模式就是用来手工校准的，安卓版保留同一能力
 - [ ] 教学图（站位/瞄点/落点）在数据里被引用，但项目中没有对应图片，两端都走上占位逻辑
+- [ ] 还没有正式签名（当前是 debug 包，自己安装没问题）
 
+## 编译
+
+本机工具链放在工程同级的 `tools` 目录（Android SDK、Gradle、依赖缓存），
+一键编译脚本会自动使用它，并把 APK 复制到同级的 `dist` 目录：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1
+```
+
+如果没有 `tools`，脚本会退回使用仓库自带 wrapper（`gradlew.bat`），
+需要本机已有 Android SDK，并在 `local.properties` 里写好 `sdk.dir`。
+
+## 上传到 GitHub
+
+```powershell
+# 先在 GitHub 网页建好空仓库
+powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl https://github.com/用户名/仓库名.git
+```
+
+装了 GitHub CLI 并登录后，也可以用 `-Create` 让脚本直接建仓库再推送。
