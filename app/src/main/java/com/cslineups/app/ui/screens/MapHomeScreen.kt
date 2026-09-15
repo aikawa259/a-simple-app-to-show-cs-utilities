@@ -1,8 +1,12 @@
 package com.cslineups.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -38,6 +42,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +66,7 @@ import com.cslineups.app.ui.components.SmallShape
 import com.cslineups.app.ui.components.TextEditDialog
 import com.cslineups.app.ui.components.UtilityBadge
 import com.cslineups.app.ui.components.pressScale
+import kotlinx.coroutines.delay
 
 /**
  * 地图首页：左上角加号新建地图，标题点开地图列表，
@@ -150,27 +156,33 @@ fun MapHomeScreen(
                 .padding(PagePadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            EntryCard(
-                icon = Icons.AutoMirrored.Filled.List,
-                title = strings.utilityList,
-                subtitle = strings.listSubtitle,
-                iconColor = Color(0xFF34C759),
-                onClick = onOpenList,
-            )
-            EntryCard(
-                icon = Icons.Filled.Search,
-                title = strings.search,
-                subtitle = strings.searchSubtitle,
-                iconColor = Color(0xFFFF9F0A),
-                onClick = onOpenSearch,
-            )
-            EntryCard(
-                icon = Icons.Filled.Star,
-                title = strings.favorites,
-                subtitle = strings.favoritesSubtitle,
-                iconColor = Color(0xFFFFD400),
-                onClick = onOpenFavorites,
-            )
+            StaggeredAppear(index = 0) {
+                EntryCard(
+                    icon = Icons.AutoMirrored.Filled.List,
+                    title = strings.utilityList,
+                    subtitle = strings.listSubtitle,
+                    iconColor = Color(0xFF34C759),
+                    onClick = onOpenList,
+                )
+            }
+            StaggeredAppear(index = 1) {
+                EntryCard(
+                    icon = Icons.Filled.Search,
+                    title = strings.search,
+                    subtitle = strings.searchSubtitle,
+                    iconColor = Color(0xFFFF9F0A),
+                    onClick = onOpenSearch,
+                )
+            }
+            StaggeredAppear(index = 2) {
+                EntryCard(
+                    icon = Icons.Filled.Star,
+                    title = strings.favorites,
+                    subtitle = strings.favoritesSubtitle,
+                    iconColor = Color(0xFFFFD400),
+                    onClick = onOpenFavorites,
+                )
+            }
 
             Text(
                 strings.itemCount(map.items.size),

@@ -3,10 +3,12 @@ package com.cslineups.app.ui
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,8 +69,10 @@ fun AppNav(
         currentMapId = currentMap?.id
     }
 
-    val springy = spring<androidx.compose.ui.unit.IntOffset>(
-        dampingRatio = Spring.DampingRatioLowBouncy,
+    // 页面像从入口卡片那里"展开"出来：以卡片所在的偏上位置为原点做缩放和旋转
+    val expandFrom = TransformOrigin(0.5f, 0.26f)
+    val pageSpring = spring<Float>(
+        dampingRatio = 0.78f,
         stiffness = Spring.StiffnessMediumLow,
     )
 
@@ -76,16 +80,32 @@ fun AppNav(
         navController = navController,
         startDestination = Routes.HOME,
         enterTransition = {
-            slideInHorizontally(animationSpec = springy) { it / 5 } + fadeIn(tween(220))
+            scaleIn(
+                animationSpec = pageSpring,
+                initialScale = 0.74f,
+                transformOrigin = expandFrom,
+            ) + fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing))
         },
         exitTransition = {
-            slideOutHorizontally(animationSpec = tween(220)) { -it / 12 } + fadeOut(tween(160))
+            scaleOut(
+                animationSpec = tween(360, easing = FastOutSlowInEasing),
+                targetScale = 0.88f,
+                transformOrigin = expandFrom,
+            ) + fadeOut(animationSpec = tween(260, delayMillis = 60))
         },
         popEnterTransition = {
-            slideInHorizontally(animationSpec = springy) { -it / 12 } + fadeIn(tween(220))
+            scaleIn(
+                animationSpec = pageSpring,
+                initialScale = 0.88f,
+                transformOrigin = expandFrom,
+            ) + fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
         },
         popExitTransition = {
-            slideOutHorizontally(animationSpec = tween(220)) { it / 5 } + fadeOut(tween(160))
+            scaleOut(
+                animationSpec = tween(320, easing = FastOutSlowInEasing),
+                targetScale = 0.74f,
+                transformOrigin = expandFrom,
+            ) + fadeOut(animationSpec = tween(220))
         },
     ) {
         composable(Routes.HOME) {

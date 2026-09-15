@@ -37,11 +37,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -115,7 +120,23 @@ fun ScreenScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    // 页面自己再转一点，配合导航层的缩放，看起来像从入口卡片"旋转展开"
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val pageAngle by animateFloatAsState(
+        targetValue = if (entered) 0f else -5f,
+        animationSpec = spring(
+            dampingRatio = 0.7f,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "pageAngle",
+    )
+
     Scaffold(
+        modifier = Modifier.graphicsLayer {
+            rotationZ = pageAngle
+            transformOrigin = TransformOrigin(0.5f, 0.26f)
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -164,15 +185,41 @@ fun EntryCard(
     iconColor: Color,
     onClick: () -> Unit,
 ) {
-    PressableCard(onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val iconRotation by animateFloatAsState(
+        targetValue = if (pressed) -8f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "entryIconRotation",
+    )
+
+    Card(
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pressScale(interaction, pressedScale = 0.96f)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .background(iconColor.copy(alpha = 0.16f), SmallShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, contentDescription = null, tint = iconColor)
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.rotate(iconRotation),
+                )
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {

@@ -104,7 +104,7 @@ interface Strings {
 }
 
 object ZhStrings : Strings {
-    override val appName = "CS 道具"
+    override val appName = "CS Utility"
     override val settings = "设置"
     override val language = "语言"
     override val followSystem = "跟随系统"
@@ -202,7 +202,7 @@ object ZhStrings : Strings {
 }
 
 object EnStrings : Strings {
-    override val appName = "CS Lineups"
+    override val appName = "CS Utility"
     override val settings = "Settings"
     override val language = "Language"
     override val followSystem = "Follow system"

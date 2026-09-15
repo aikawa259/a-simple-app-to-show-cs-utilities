@@ -1,4 +1,4 @@
-# CS Lineups（Android）
+# CS Utility（Android）
 
 一个自己整理 CS 道具的安卓 App：**地图由你自己建，道具由你自己录**，每条道具可以记录站位图、瞄点图、效果图。
 
@@ -41,7 +41,8 @@ https://github.com/aikawa259/a-simple-app-to-show-cs-utilities/releases/latest/d
 | 数据 | 用户数据存 `filesDir/maps.json` | 用系统自带 `org.json` 读写，零额外依赖；图片存 `filesDir/images/` |
 | 状态 | `MapRepository` + `StateFlow` | 增删改后立即落盘，界面随 flow 自动刷新 |
 | 文案 | 自建 `Strings` 接口 + 中英文实现 | App 内切换语言，不依赖系统语言 |
-| 动效 | 弹簧动画为主 | 卡片按压缩放、胶囊选中回弹、页面滑入滑出、空状态淡入 |
+| 动效 | 弹簧动画为主 | 页面从入口附近"旋转展开"（导航层缩放 + 页面自身旋转）、内容依次抬入、卡片按压缩放、胶囊选中回弹 |
+| 图标 | 自适应图标 + 脚本生成 | 源图放 `docs/branding/`，`scripts/make-icons.ps1` 自动裁切、去白底并生成 5 个密度的前景图 |
 
 ## 目录结构
 
@@ -55,6 +56,7 @@ app/src/main/java/com/cslineups/app/
   ui/screens/     地图首页、道具列表、详情、编辑、搜索、收藏、设置、关于
 app/src/test/     单元测试与界面渲染测试
 scripts/          一键编译脚本、GitHub 推送脚本
+docs/branding/    图标源图
 ```
 
 ## 测试
@@ -100,6 +102,13 @@ powershell -ExecutionPolicy Bypass -File scripts\upload-to-github.ps1 -RepoUrl h
 - 当前是 debug 包，自己装没问题；上架需要正式签名
 
 ## 变更记录
+
+**0.3.0**
+
+- 应用名改为 **CS Utility**，图标换成 CS Unity 风格的新 logo（自适应图标，白底 + 黑色 logo）
+- 页面切换重做：改为从入口卡片所在的偏上位置放大展开，并带一点旋转，时长放慢（约 300–400ms）；
+  同时修掉了切换时"闪一下黑"的问题（浅色模式下窗口底色原来是深色）
+- 首页三个入口依次抬入，入口图标按下时会转动一下
 
 **0.2.0**
 

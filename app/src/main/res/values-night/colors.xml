@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色模式下窗口底色要和 Compose 主题一致，否则页面切换时会闪一下黑 -->
+    <color name="window_background">#FF101114</color>
+</resources>
